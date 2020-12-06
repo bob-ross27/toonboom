@@ -1,0 +1,17 @@
+#!/bin/bash
+# tsc strips whitespace during the conversion, so we temporarily format with empty
+# comments to represent whitespace, convert, and revert.
+# Additionally uses prettier to format the code, ensuring git will only pick changed files.
+
+# Replace newlines with comments to skip whitespace stripping when compiling.
+find ./src -type f -name "*.ts" -exec sed -i -e 's/^$/\/\//g' {} \;
+
+# Compile all typescript files.
+tsc
+
+# Revert src and strip comments from scripts.
+find ./src -type f -name "*.ts" -exec sed -i -e 's/\/\/$//g' {} \;
+find ./scripts -type f -name "*.js" -exec sed -i -e 's/\/\/$//g' {} \;
+
+# Format output with prettier and add to git.
+find ./scripts -type f -name "*.js" -exec npx prettier --write {} \; -exec git add {} \;

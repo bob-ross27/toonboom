@@ -1,0 +1,14 @@
+{
+    "extends": ["airbnb-typescript-prettier"],
+    "plugins": ["prettier"],
+    "rules": {
+        "func-names": "off",
+        "no-var": "off",
+        "strict": "off",
+        "vars-on-top": "off",
+        "no-underscore-dangle": "off",
+        "no-continue": "off",
+        "no-undef": "off",
+        "prettier/prettier": ["error"]
+    }
+}

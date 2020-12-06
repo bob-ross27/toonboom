@@ -1,0 +1,15 @@
+# VSCode
+*.code-workspace
+
+# typings.
+scripts/typings
+
+# Dependency directory
+node_modules
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# tsc watch <filename> doesn't use tsconfig, and will output .js next to ts.
+src/*.js

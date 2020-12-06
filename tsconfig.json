@@ -1,0 +1,7 @@
+{
+    "compilerOptions": {
+        "target": "ES5",
+        "typeRoots": ["src/typings/*"],
+        "outDir": "scripts"
+    }
+}
