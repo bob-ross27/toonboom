@@ -4,7 +4,7 @@
 
 <!-- <img src="script-icons/mergeDuplicateTimings.png" width="35" height="35"> -->
 
-[**Click Here to Download**](https://github.com/bob-ross27/toonboom/blob/master/dist/mergeDuplicateTimings.zip)
+[**Click Here to Download**](https://github.com/bob-ross27/toonboom/raw/main/dist/mergeDuplicateTimings.zip)
 
 **Version** 1.2.0
 
