@@ -40,7 +40,7 @@ def generate_readme(script_data, version):
     description_found = False
     instruction_found = False
 
-    with open(os.path.abspath("../scripts/README.md"), "r") as read_file:
+    with open(os.path.abspath("./scripts/README.md"), "r") as read_file:
         for line in read_file:
             if not description_found or not instruction_found:
                 if re.match(rf"\#\# {script_name_text}.*", line):
@@ -60,6 +60,7 @@ def generate_readme(script_data, version):
             repo_info_text,
             "",
             description_text,
+            "",
             instruction_text,
         ]
     )
@@ -74,8 +75,8 @@ def get_paths(script):
     script_clean = script.replace(".ts", "")
     ScriptData = namedtuple("ScriptData", ["src", "js", "ui", "icon"])
 
-    scripts_dir = os.path.abspath("../scripts")
-    src = {"name": script, "path": os.path.join(os.path.abspath("../src"), script)}
+    scripts_dir = os.path.abspath("./scripts")
+    src = {"name": script, "path": os.path.join(os.path.abspath("./src"), script)}
 
     js = {
         "name": f"{script_clean}.js",
@@ -98,7 +99,7 @@ def write_zip(script_data, file_version, readme_text):
     Create a zip for distribution containing the compiled js, any
     associated components such as ui files or script-icons, and a readme.txt
     """
-    dist_dir = os.path.abspath("../dist")
+    dist_dir = os.path.abspath("./dist")
     zip_name = script_data.src["name"].replace("ts", "zip")
     zip_out = os.path.join(dist_dir, zip_name)
 
@@ -122,8 +123,9 @@ def write_zip(script_data, file_version, readme_text):
 
 
 if __name__ == "__main__":
-    for file in os.listdir("../src"):
-        file_version = get_version(os.path.join(os.path.abspath("../src"), file))
+    file_list = [file for file in os.listdir("./src") if file.endswith(".ts")]
+    for file in file_list:
+        file_version = get_version(os.path.join(os.path.abspath("./src"), file))
 
         script_data = get_paths(file)
         readme_text = generate_readme(script_data, file_version)

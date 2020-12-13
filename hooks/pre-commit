@@ -16,14 +16,16 @@ find ./scripts -type f -name "*.js" -exec sed -i -e 's/\/\/$//g' {} \;
 # Format output with prettier and add to git.
 find ./scripts -type f -name "*.js" -exec npx prettier --write {} \; -exec git add {} \;
 
-cd "$(dirname "$0")"
-
-if ! python3 ./build_archives.py; then
+if ! python3 ./hooks/build_archives.py; then
     echo "Python build script failed."
     exit 1 
 fi
 
-if ! python3 ./update_readme.py; then
+git add --all dist/
+
+if ! python3 ./hooks/update_readme.py; then
     echo "Python readme script failed."
     exit 1 
 fi
+
+git add scripts/README.md

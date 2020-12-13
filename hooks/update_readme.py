@@ -24,7 +24,7 @@ def update_script_readme(script, version):
     """
     # Read lines into array, modifying the version of the script with the inputted
     # version.
-    with open(os.path.abspath("../scripts/README.md"), "r") as read_file:
+    with open(os.path.abspath("./scripts/README.md"), "r") as read_file:
         script_match = False
         version_updated = False
         file_read = []
@@ -42,7 +42,7 @@ def update_script_readme(script, version):
 
     # Rewrite script readme with updated information.
     try:
-        with open(os.path.abspath("../scripts/README.md"), "w") as write_file:
+        with open(os.path.abspath("./scripts/README.md"), "w") as write_file:
             for line in file_read:
                 write_file.writelines(line)
 
@@ -58,7 +58,8 @@ def update_script_readme(script, version):
 
 
 if __name__ == "__main__":
-    for file in os.listdir("../src"):
-        file_version = get_version(os.path.join(os.path.abspath("../src"), file))
+    file_list = [file for file in os.listdir("./src") if file.endswith(".ts")]
+    for file in file_list:
+        file_version = get_version(os.path.join(os.path.abspath("./src"), file))
         if not update_script_readme(file, file_version):
             sys.exit(1)
