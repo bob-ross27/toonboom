@@ -47,9 +47,11 @@ function importMovieFFmpeg(): boolean {
     };
 
     const CURL_BIN: string = about.isWindowsArch() ? "curl.exe" : "curl";
-    const CURL_PATH: string = fileMapper.toNativePath(
-        `${specialFolders.bin}/bin_3rdParty/${CURL_BIN}`
-    );
+    const CURL_PATH: string = about.isWindowsArch()
+        ? fileMapper.toNativePath(
+              `${specialFolders.bin}/bin_3rdParty/${CURL_BIN}`
+          )
+        : `/usr/bin/${CURL_BIN}`;
     const FFMPEG_BIN: string = about.isWindowsArch() ? "FFmpeg.exe" : "FFmpeg";
     const SCRIPT_RESOURCE_PATH: string = this.getScriptResourcePath();
     const TEMP_DIR: string = this.getTempDirectory();
@@ -251,7 +253,7 @@ function importMovieFFmpeg(): boolean {
          * @returns {boolean} true if successful, false otherwise.
          */
         this._extractFFmpeg = function (zipPath: string): boolean {
-            const ZIP_BIN = about.isWindowsArch() ? "7z.exe" : "7z";
+            const ZIP_BIN = about.isWindowsArch() ? "7z.exe" : "7za";
             const ZIP_PATH = fileMapper.toNativePath(
                 `${specialFolders.bin}/bin_3rdParty/${ZIP_BIN}`
             );
