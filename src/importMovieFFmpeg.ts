@@ -119,7 +119,7 @@ function importMovieFFmpeg(): boolean {
             this.convertUI.value = 0;
             this.convertUI.maximum = fileCount;
             this.convertUI.setLabelText("\nConverting video using FFmpeg...");
-            this.convertUI.setCancelButton(null); // TODO: Cancel button not working - dialog not responsive.
+            this.convertUI.setCancelButton(new QPushButton("Cancel"));
             return this.convertUI;
         };
 
@@ -140,56 +140,42 @@ function importMovieFFmpeg(): boolean {
             fileMapper.toNativePath(`${TEMP_DIR}/${inputMovieBasename}.wav`),
         ];
 
-        this.convertUI = this._createConvertUI(fileCount);
-        this.convertUI.show();
-        proc.start(ffmpegPath, ffmpegArgs);
-
-        // TODO: Remove timeout in favor of responsive Cancel if
-        var timeout = 0;
-        const MAX_TIMEOUT = 60000; // TODO: Use a pref for this, default back to 60s.
-
+        var convertedFiles = 0;
         var tempDir = new QDir(TEMP_DIR);
-        while (
-            tempDir.entryList(["*.tga", "*.wav"], QDir.Files, QDir.Name)
-                .length <= fileCount &&
-            timeout < MAX_TIMEOUT
-        ) {
-            // TODO: Re-enable when Cancel button works.
-            // Kill ffmpeg process if user cancels conversion.
-            // if (this.convertUI.wasCanceled) {
-            //     proc.kill();
-            //     this.convertUI.close();
-            //     return false;
-            // }
 
-            // Exit if files are completed.
-            if (
-                tempDir.entryList(["*.tga", "*.wav"], QDir.Files, QDir.Name)
-                    .length === fileCount
-            ) {
-                this.convertUI.value = tempDir.entryList(
-                    ["*.tga", "*.wav"],
-                    QDir.Files,
-                    QDir.Name
-                ).length;
-                this.sleepFor(500); // Sleep slightly longer in case FFmpeg is still writing the final file.
-                break;
-            }
-
-            this.convertUI.value = tempDir.entryList(
+        // Create a QTimer to handle checking for converted files and updating the
+        // progress dialog without blocking GUI.
+        var timer = new QTimer(this);
+        timer.timeout.connect(this, function () {
+            convertedFiles = tempDir.entryList(
                 ["*.tga", "*.wav"],
                 QDir.Files,
                 QDir.Name
             ).length;
-            this.sleepFor(100);
-            timeout += 100;
-        }
+            this.convertUI.setValue(convertedFiles);
+        });
 
-        // Timeout exceeded.
-        if (timeout === MAX_TIMEOUT) {
-            proc.kill();
-            this.convertUI.close();
-            return false;
+        this.convertUI = this._createConvertUI(fileCount);
+        this.convertUI.show();
+        proc.start(ffmpegPath, ffmpegArgs);
+        timer.start(50);
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            // Kill ffmpeg process if user cancels conversion.
+            if (this.convertUI.wasCanceled) {
+                timer.stop();
+                proc.kill();
+                this.convertUI.close();
+                return false;
+            }
+
+            // Exit if files are completed.
+            if (convertedFiles >= fileCount) {
+                timer.stop();
+                this.sleepFor(500); // Sleep slightly longer in case FFmpeg is still writing the final file.
+                break;
+            }
         }
 
         var procReturn: boolean = proc.exitStatus();
@@ -492,7 +478,13 @@ function importMovieFFmpeg(): boolean {
     }
 
     // Export image sequence and audio using FFmpeg
-    this.convertMovie(FFMPEG_PATH, inputMovie);
+    var convertMovie = this.convertMovie(FFMPEG_PATH, inputMovie);
+    // Conversion failed or user exited prematurely.
+    if (!convertMovie) {
+        scene.cancelUndoRedoAccum();
+        this.cleanTempDir();
+        return;
+    }
 
     // Import files into Harmony.
     if (this.importConvertedImages() && this.importConvertedAudio()) {
