@@ -290,6 +290,11 @@ function importMovieFFmpeg(): boolean {
             `${this.getScriptResourcePath(true)}/ffmpeg_download.7z`
         ); // Create resource path if not already present.
 
+        // curl doesn't exist - exit.
+        if (!new QDir(CURL_PATH).exists()) {
+            return "";
+        }
+
         var curlArgs: string[] = [
             ffmpegUrl,
             "-k", // insecure - don't verify ssl cert
