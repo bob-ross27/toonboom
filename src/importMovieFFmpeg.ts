@@ -242,6 +242,8 @@ function importMovieFFmpeg(): boolean {
             if (about.isWindowsArch()) {
                 url =
                     "https://www.gyan.dev/FFmpeg/builds/FFmpeg-release-essentials.7z";
+            } else if (about.isMacArch()) {
+                url = "https://evermeet.cx/ffmpeg/getrelease/7z";
             }
 
             return url;
