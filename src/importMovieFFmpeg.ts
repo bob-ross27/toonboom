@@ -498,7 +498,7 @@ function importMovieFFmpeg(): boolean {
     // Import files into Harmony.
     if (this.importConvertedImages() && this.importConvertedAudio()) {
         MessageLog.trace("All operations complete.");
-        this.cleanTempDir();
-        scene.endUndoRedoAccum();
     }
+    this.cleanTempDir();
+    scene.endUndoRedoAccum();
 }
