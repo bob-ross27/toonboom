@@ -241,7 +241,7 @@ function importMovieFFmpeg(): boolean {
             var url: string;
             if (about.isWindowsArch()) {
                 url =
-                    "https://www.gyan.dev/FFmpeg/builds/FFmpeg-release-essentials.7z";
+                    "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.7z";
             } else if (about.isMacArch()) {
                 url = "https://evermeet.cx/ffmpeg/getrelease/7z";
             }
@@ -293,7 +293,7 @@ function importMovieFFmpeg(): boolean {
         ); // Create resource path if not already present.
 
         // curl doesn't exist - exit.
-        if (!new QDir(CURL_PATH).exists()) {
+        if (!new QFile(CURL_PATH).exists()) {
             return "";
         }
 
