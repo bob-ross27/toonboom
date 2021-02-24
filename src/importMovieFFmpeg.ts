@@ -472,7 +472,7 @@ function importMovieFFmpeg(): boolean {
         return;
     }
 
-    scene.beginUndoRedoAccum("Test Importing Images");
+    scene.beginUndoRedoAccum("importMovieFFmpeg");
 
     // Get input movie from user.
     // Default to a sensible filter but allow for all files for weird formats.
