@@ -549,11 +549,13 @@ function importMovieFFmpeg(): boolean {
      * Main
      */
 
-    // Exit if not Windows.
-    // TODO: Remove once mac support is determined.
-    if (!about.isWindowsArch()) {
-        MessageBox.critical("Currently only Windows is supported.");
-        return;
+    // Not fully supported platforms.
+    if (about.isMacArch()) {
+        MessageBox.information("Mac support is currently Beta.");
+    } else if (about.isLinuxArch()) {
+        MessageBox.information(
+            "Linux support is currently Beta.\nffmpeg will need to already be in the PATH as download support is not implemented."
+        );
     }
 
     // Preference dialog
