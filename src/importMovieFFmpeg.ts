@@ -584,8 +584,6 @@ function importMovieFFmpeg(): boolean {
         return;
     }
 
-    scene.beginUndoRedoAccum("importMovieFFmpeg");
-
     // Get input movie from user.
     // Default to a sensible filter but allow for all files for weird formats.
     var inputMovie: string = FileDialog.getOpenFileName(
@@ -597,6 +595,8 @@ function importMovieFFmpeg(): boolean {
     if (!inputMovie) {
         return;
     }
+
+    scene.beginUndoRedoAccum("importMovieFFmpeg");
 
     // Export image sequence and audio using FFmpeg
     var convertMovie = this.convertMovie(FFMPEG_PATH, inputMovie);
