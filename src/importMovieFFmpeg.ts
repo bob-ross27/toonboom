@@ -46,6 +46,94 @@ function importMovieFFmpeg(): boolean {
         return tempFolderName;
     };
 
+    /**
+     * Try to get preferences, return default values if not found.
+     * @returns {JSON} Object containing preference values.
+     */
+    this.getPreferences = function () {
+        var prefObj: string = preferences.getString(
+            "IMPORT_MOVIE_FFMPEG_PREF",
+            ""
+        );
+        // Default values.
+        if (!prefObj) {
+            return { videoExt: "tga", audioExt: "wav" };
+        }
+
+        return JSON.parse(prefObj);
+    };
+
+    /**
+     * Save the preferences as a Harmony preference.
+     * @param {JSON} prefObj - Object containing the preferences to store.
+     */
+    this.setPreferences = function (prefObj: JSON) {
+        preferences.setString(
+            "IMPORT_MOVIE_FFMPEG_PREF",
+            JSON.stringify(prefObj)
+        );
+    };
+
+    /**
+     * Create a dialog for setting preferences.
+     */
+    this.createPreferenceDialog = function () {
+        var prefs = this.getPreferences();
+        var videoExt: string[] = ["jpeg", "png", "tga"];
+        var audioExt: string[] = ["mp3", "wav"];
+
+        // Preference Dialog
+        this.prefUI = new QDialog();
+        this.prefUI.setWindowTitle("Preferences");
+        this.prefUI.minimumWidth = 130;
+        this.prefUI.minimumHeight = 150;
+        this.prefUI.layout = new QVBoxLayout();
+
+        this.prefUI.descriptionLabel = new QLabel(
+            "Set the file format for converted image and audio output.\n"
+        );
+        this.prefUI.descriptionLabel.wordWrap = true;
+        this.prefUI.layout.addWidget(this.prefUI.descriptionLabel, true, true);
+
+        // Video options
+        this.prefUI.videoLabel = new QLabel("Video Format");
+        this.prefUI.videoCB = new QComboBox();
+        videoExt.forEach(function (ext: string) {
+            this.prefUI.videoCB.addItem(ext);
+        });
+        // Set default selection to current prefs.
+        this.prefUI.videoCB.setCurrentIndex(
+            this.prefUI.videoCB.findText(prefs.videoExt)
+        );
+        this.prefUI.layout.addWidget(this.prefUI.videoLabel, true, true);
+        this.prefUI.layout.addWidget(this.prefUI.videoCB, true, true);
+
+        // Audio options
+        this.prefUI.audioLabel = new QLabel("Audio Format");
+        this.prefUI.audioCB = new QComboBox();
+        audioExt.forEach(function (ext: string) {
+            this.prefUI.audioCB.addItem(ext);
+        });
+        // Set default selection to current prefs.
+        this.prefUI.audioCB.setCurrentIndex(
+            this.prefUI.audioCB.findText(prefs.audioExt)
+        );
+        this.prefUI.layout.addWidget(this.prefUI.audioLabel, true, true);
+        this.prefUI.layout.addWidget(this.prefUI.audioCB, true, true);
+
+        this.prefUI.acceptBtn = new QPushButton("Save");
+        this.prefUI.layout.addWidget(this.prefUI.acceptBtn, true, true);
+        this.prefUI.layout.addWidget(
+            new QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding),
+            true,
+            true
+        );
+
+        this.prefUI.setLayout(this.prefUI.layout);
+
+        return this.prefUI;
+    };
+
     const CURL_BIN: string = about.isWindowsArch() ? "curl.exe" : "curl";
     const CURL_PATH: string = about.isWindowsArch()
         ? fileMapper.toNativePath(
@@ -55,6 +143,8 @@ function importMovieFFmpeg(): boolean {
     const FFMPEG_BIN: string = about.isWindowsArch() ? "FFmpeg.exe" : "FFmpeg";
     const SCRIPT_RESOURCE_PATH: string = this.getScriptResourcePath();
     const TEMP_DIR: string = this.getTempDirectory();
+    const IMAGE_EXT = this.getPreferences().videoExt;
+    const AUDIO_EXT = this.getPreferences().audioExt;
 
     /**
      * Convert the input movie using FFmpeg to an image sequence
@@ -130,16 +220,18 @@ function importMovieFFmpeg(): boolean {
 
         // Find expected frame count.
         var frameCount: number = this._findMovieFrames(inputMovieFile);
-        var fileCount = frameCount + 1; // +1 for audio .wav
+        var fileCount = frameCount + 1; // +1 for audio
         var proc = new QProcess();
         var ffmpegArgs: string[] = [
             "-y",
             "-i",
             `${inputMovieFile.absoluteFilePath()}`,
             fileMapper.toNativePath(
-                `${TEMP_DIR}/${inputMovieBasename}-%04d.tga`
+                `${TEMP_DIR}/${inputMovieBasename}-%04d.${IMAGE_EXT}`
             ),
-            fileMapper.toNativePath(`${TEMP_DIR}/${inputMovieBasename}.wav`),
+            fileMapper.toNativePath(
+                `${TEMP_DIR}/${inputMovieBasename}.${AUDIO_EXT}`
+            ),
         ];
 
         var convertedFiles = 0;
@@ -150,7 +242,7 @@ function importMovieFFmpeg(): boolean {
         var timer = new QTimer(this);
         timer.timeout.connect(this, function () {
             convertedFiles = tempDir.entryList(
-                ["*.tga", "*.wav"],
+                [`*.${IMAGE_EXT}`, `*.${AUDIO_EXT}`],
                 QDir.Files,
                 QDir.Name
             ).length;
@@ -370,7 +462,7 @@ function importMovieFFmpeg(): boolean {
     this.importConvertedImages = function (): boolean {
         var tempPath = new QDir(TEMP_DIR);
         var files: string[] = tempPath.entryList(
-            ["*.tga"],
+            [`*.${IMAGE_EXT}`],
             QDir.Files,
             QDir.Name
         );
@@ -399,7 +491,7 @@ function importMovieFFmpeg(): boolean {
     this.importConvertedAudio = function (): boolean {
         var tempPath = new QDir(TEMP_DIR);
         var convertedAudio: string = tempPath.entryList(
-            ["*.wav"],
+            [`*.${AUDIO_EXT}`],
             QDir.Files,
             QDir.Name
         )[0];
@@ -458,6 +550,21 @@ function importMovieFFmpeg(): boolean {
     // TODO: Remove once mac support is determined.
     if (!about.isWindowsArch()) {
         MessageBox.critical("Currently only Windows is supported.");
+        return;
+    }
+
+    // Preference dialog
+    // Open preference dialog to set formats and close without running script.
+    if (KeyModifiers.IsShiftPressed()) {
+        this.prefUI = this.createPreferenceDialog();
+        this.prefUI.acceptBtn.released.connect(this, function () {
+            this.setPreferences({
+                videoExt: this.prefUI.videoCB.currentText,
+                audioExt: this.prefUI.audioCB.currentText,
+            });
+            this.prefUI.close();
+        });
+        this.prefUI.exec();
         return;
     }
 
