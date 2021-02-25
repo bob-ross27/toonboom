@@ -267,6 +267,9 @@ function importMovieFFmpeg(): boolean {
             // Exit if files are completed.
             if (convertedFiles >= fileCount) {
                 timer.stop();
+                // ProgressDialog should automatically close, but formats such as mkv may report slightly different
+                // framecounts during _findMovieFrames than are actually converted.
+                this.convertUI.close();
                 this.sleepFor(500); // Sleep slightly longer in case FFmpeg is still writing the final file.
                 break;
             }
