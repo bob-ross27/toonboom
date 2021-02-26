@@ -1,7 +1,5 @@
 "use strict";
 
-// TODO: Pull in proper QT / Harmony ts (merge main and rebase)
-
 /**
  * Mimic the built-in movie import with FFmpeg.
  * Software: Harmony 17 Premium.
