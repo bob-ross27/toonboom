@@ -156,27 +156,46 @@ function importMovieFFmpeg(): boolean {
         inputMovie: string
     ): boolean {
         /**
+         * Use chmod to set executible bit.
+         */
+        this._setFFmpegExecutable = function (): boolean {
+            // This shouldn't be relevant to Windows.
+            if (about.isMacArch() || about.isLinuxArch()) {
+                var proc = new QProcess();
+                proc.start("bash", ["chmod", "+x", FFMPEG_BIN]);
+                var procStarted = proc.waitForStarted(1000);
+                // Chmod unsuccessful.
+                if (!procStarted) {
+                    return false;
+                }
+                var procReturn = proc.waitForFinished(3000);
+                if (procReturn && new QFileInfo(FFMPEG_BIN).isExecutable()) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        /**
          * Test FFmpeg to ensure it's set as executable
          * and can execute basic command.
-         * Try using chmod to set executable bit if not.
          */
         this._testFFmpegExecutable = function (): boolean {
             // Not executable, try using chmod.
             if (!new QFileInfo(FFMPEG_BIN).isExecutable()) {
-                if (about.isMacArch() || about.isLinuxArch()) {
-                    var proc = new QProcess();
-                    proc.start("chmod", ["+x", FFMPEG_BIN]);
-                    var started = proc.waitForStarted(1000);
-                    // Chmod unsuccessful.
-                    if (!started) {
-                        return false;
-                    }
+                // Try to make executable.
+                if (!this._setFFmpegExecutable()) {
+                    return false;
                 }
             }
 
-            var versionProc = new QProcess();
-            versionProc.start(FFMPEG_BIN, ["-version"]);
-            return versionProc.waitForStarted(1000);
+            var proc = new QProcess();
+            proc.start(FFMPEG_BIN, ["-version"]);
+            var procStarted = proc.waitForStarted(1000);
+            var procFinished = proc.waitForStarted(3000);
+
+            return procStarted && procFinished;
         };
 
         /**
@@ -366,6 +385,7 @@ function importMovieFFmpeg(): boolean {
             this.downloadUI.maximum = 4; // Download > Extract > Clean > Complete
             this.downloadUI.value = 0;
             this.downloadUI.minimumDuration = 0;
+            this.downloadUI.setCancelButton(null);
             return this.downloadUI;
         };
 
