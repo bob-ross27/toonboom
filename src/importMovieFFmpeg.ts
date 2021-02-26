@@ -201,29 +201,39 @@ function importMovieFFmpeg(): boolean {
                 "-",
             ];
             proc.start(ffmpegPath, ffmpegArgs);
+            var procStarted: boolean = proc.waitForStarted(1000);
+            // Process couldn't be started.
+            if (!procStarted) {
+                return false;
+            }
 
-            var procReturn: boolean = proc.waitForFinished(60000);
-
+            var procReturn: boolean = proc.waitForFinished(20000);
             // Verify exit code
             if (procReturn) {
                 // Fetch stderr output for parsing.
                 var outputStdErr = new QTextStream(
                     proc.readAllStandardError()
                 ).readAll();
-                var framesRe = new RegExp(/.*frame=\s+(\d+)\s?fps=.*/);
+                var framesRe = new RegExp(/.*frame=\s*(\d+)\s?fps=.*/);
                 if (outputStdErr.match(framesRe)) {
                     return parseInt(outputStdErr.match(framesRe)[1], 10);
                 }
+            } else {
+                // Proc timed out.
+                MessageLog.trace(
+                    "Error: FFmpeg timed out when detecting movie framecount."
+                );
+                proc.kill();
             }
+
             return false;
         };
 
         /**
          * Create the QT Progress dialog.
-         * @param {int} fileCount - Number of files to create.
          * @returns {QWidget} Progress dialog.
          */
-        this._createConvertUI = function (fileCount: number) {
+        this._createConvertUI = function () {
             this.convertUI = new QProgressDialog(
                 this,
                 "Converting Images with FFmpeg"
@@ -231,8 +241,7 @@ function importMovieFFmpeg(): boolean {
             this.convertUI.setWindowFlags(Qt.FramelessWindowHint);
             this.convertUI.minimumDuration = 0;
             this.convertUI.value = 0;
-            this.convertUI.maximum = fileCount;
-            this.convertUI.setLabelText("\nConverting video using FFmpeg...");
+            this.convertUI.setLabelText("\nDetermining Movie Framecount...");
             this.convertUI.setCancelButton(new QPushButton("Cancel"));
             return this.convertUI;
         };
@@ -245,9 +254,14 @@ function importMovieFFmpeg(): boolean {
         var inputMovieFile = new QFileInfo(inputMovie);
         var inputMovieBasename: string = inputMovieFile.baseName();
 
+        this.convertUI = this._createConvertUI();
+        this.convertUI.show();
+
         // Find expected frame count.
         var frameCount: number = this._findMovieFrames(inputMovieFile);
         var fileCount = frameCount + 1; // +1 for audio
+
+        // Conversion process
         var proc = new QProcess();
         var ffmpegArgs: string[] = [
             "-y",
@@ -266,8 +280,8 @@ function importMovieFFmpeg(): boolean {
 
         // Create a QTimer to handle checking for converted files and updating the
         // progress dialog without blocking GUI.
-        var timer = new QTimer(this);
-        timer.timeout.connect(this, function () {
+        this.timer = new QTimer(this);
+        this.timer.timeout.connect(this, function () {
             convertedFiles = tempDir.entryList(
                 [`*.${IMAGE_EXT}`, `*.${AUDIO_EXT}`],
                 QDir.Files,
@@ -276,16 +290,16 @@ function importMovieFFmpeg(): boolean {
             this.convertUI.setValue(convertedFiles);
         });
 
-        this.convertUI = this._createConvertUI(fileCount);
-        this.convertUI.show();
         proc.start(ffmpegPath, ffmpegArgs);
-        timer.start(50);
+        this.convertUI.setLabelText("\nConverting video using FFmpeg...");
+        this.convertUI.maximum = fileCount;
+        this.timer.start(50);
 
         // eslint-disable-next-line no-constant-condition
         while (true) {
             // Kill ffmpeg process if user cancels conversion.
             if (this.convertUI.wasCanceled) {
-                timer.stop();
+                this.timer.stop();
                 proc.kill();
                 this.convertUI.close();
                 return false;
@@ -293,7 +307,7 @@ function importMovieFFmpeg(): boolean {
 
             // Exit if files are completed.
             if (convertedFiles >= fileCount) {
-                timer.stop();
+                this.timer.stop();
                 // ProgressDialog should automatically close, but formats such as mkv may report slightly different
                 // framecounts during _findMovieFrames than are actually converted.
                 this.convertUI.close();
@@ -390,7 +404,14 @@ function importMovieFFmpeg(): boolean {
                 "-r", // Search recursively
             ];
             proc.start(ZIP_PATH, zipArgs);
-            var procReturn: boolean = proc.waitForFinished(60000);
+            var procStarted = proc.waitForStarted(1000);
+
+            // Unable to launch 7z|7za.
+            if (!procStarted) {
+                return false;
+            }
+
+            var procReturn: boolean = proc.waitForFinished(20000);
 
             if (procReturn) {
                 this.downloadUI.setLabelText("Cleaning up.");
@@ -428,9 +449,15 @@ function importMovieFFmpeg(): boolean {
         ];
         var proc = new QProcess();
         proc.start(CURL_PATH, curlArgs);
+        var procStarted = proc.waitForStarted(1000);
+
+        // Unable to launch curl.
+        if (!procStarted) {
+            return "";
+        }
 
         // Launch proc, wait for finished signal or timeout.
-        var procReturn: boolean = proc.waitForFinished(60000);
+        var procReturn: boolean = proc.waitForFinished(30000);
 
         // Extract FFmpeg binary from downloaded archive.
         if (procReturn) {
