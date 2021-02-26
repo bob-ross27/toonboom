@@ -138,7 +138,7 @@ function importMovieFFmpeg(): boolean {
               `${specialFolders.bin}/bin_3rdParty/${CURL_BIN}`
           )
         : `/usr/bin/${CURL_BIN}`;
-    const FFMPEG_BIN: string = about.isWindowsArch() ? "FFmpeg.exe" : "FFmpeg";
+    const FFMPEG_BIN: string = about.isWindowsArch() ? "ffmpeg.exe" : "ffmpeg";
     const SCRIPT_RESOURCE_PATH: string = this.getScriptResourcePath();
     const TEMP_DIR: string = this.getTempDirectory();
     const IMAGE_EXT = this.getPreferences().videoExt;
