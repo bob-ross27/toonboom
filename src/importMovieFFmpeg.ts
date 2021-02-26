@@ -158,6 +158,30 @@ function importMovieFFmpeg(): boolean {
         inputMovie: string
     ): boolean {
         /**
+         * Test FFmpeg to ensure it's set as executable
+         * and can execute basic command.
+         * Try using chmod to set executable bit if not.
+         */
+        this._testFFmpegExecutable = function (): boolean {
+            // Not executable, try using chmod.
+            if (!new QFileInfo(FFMPEG_BIN).isExecutable()) {
+                if (about.isMacArch() || about.isLinuxArch()) {
+                    var proc = new QProcess();
+                    proc.start("chmod", ["+x", FFMPEG_BIN]);
+                    var started = proc.waitForStarted(1000);
+                    // Chmod unsuccessful.
+                    if (!started) {
+                        return false;
+                    }
+                }
+            }
+
+            var versionProc = new QProcess();
+            versionProc.start(FFMPEG_BIN, ["-version"]);
+            return versionProc.waitForStarted(1000);
+        };
+
+        /**
          * Find the expected framecount to query by running a
          * dummy FFmpeg session and regexing the output.
          * @param {string} inputMovieFile - Path to the user provided movie.
@@ -214,6 +238,11 @@ function importMovieFFmpeg(): boolean {
             this.convertUI.setCancelButton(new QPushButton("Cancel"));
             return this.convertUI;
         };
+
+        // If FFmpeg isn't able to launch, exit.
+        if (!this._testFFmpegExecutable()) {
+            return false;
+        }
 
         var inputMovieFile = new QFileInfo(inputMovie);
         var inputMovieBasename: string = inputMovieFile.baseName();
