@@ -162,14 +162,14 @@ function importMovieFFmpeg(): boolean {
             // This shouldn't be relevant to Windows.
             if (about.isMacArch() || about.isLinuxArch()) {
                 var proc = new QProcess();
-                proc.start("bash", ["chmod", "+x", FFMPEG_BIN]);
+                proc.start("bash", ["chmod", "+x", ffmpegPath]);
                 var procStarted = proc.waitForStarted(1000);
                 // Chmod unsuccessful.
                 if (!procStarted) {
                     return false;
                 }
                 var procReturn = proc.waitForFinished(3000);
-                if (procReturn && new QFileInfo(FFMPEG_BIN).isExecutable()) {
+                if (procReturn && new QFileInfo(ffmpegPath).isExecutable()) {
                     return true;
                 }
             }
@@ -183,7 +183,7 @@ function importMovieFFmpeg(): boolean {
          */
         this._testFFmpegExecutable = function (): boolean {
             // Not executable, try using chmod.
-            if (!new QFileInfo(FFMPEG_BIN).isExecutable()) {
+            if (!new QFileInfo(ffmpegPath).isExecutable()) {
                 // Try to make executable.
                 if (!this._setFFmpegExecutable()) {
                     return false;
@@ -191,7 +191,7 @@ function importMovieFFmpeg(): boolean {
             }
 
             var proc = new QProcess();
-            proc.start(FFMPEG_BIN, ["-version"]);
+            proc.start(ffmpegPath, ["-version"]);
             var procStarted = proc.waitForStarted(1000);
             var procFinished = proc.waitForStarted(3000);
 
@@ -507,7 +507,8 @@ function importMovieFFmpeg(): boolean {
      */
     this.getFFmpegPath = function (): string {
         var scriptResourcePath: string[] = [SCRIPT_RESOURCE_PATH];
-        var envPaths: string[] = System.getenv("PATH").split(";");
+        var pathSplit = about.isWindowsArch() ? ";" : ":";
+        var envPaths: string[] = System.getenv("PATH").split(pathSplit);
         var paths: string[] = scriptResourcePath.concat(envPaths);
         var ffmpegPath: string[] = paths.filter(function (path) {
             return new QFile(
