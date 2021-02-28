@@ -19,9 +19,10 @@ function importMovieFFmpeg(): boolean {
         var resourceFolderName: string = fileMapper.toNativePath(
             `${specialFolders.userScripts}/${folderName}`
         );
-        var resourceDir = new QDir(resourceFolderName);
-        if (!resourceDir.exists() && createFolder) {
-            new QDir(specialFolders.userScripts).mkdir(folderName);
+        if (!new QDir(resourceFolderName).exists() && createFolder) {
+            var scriptParent = new QDir(specialFolders.userScripts);
+            scriptParent.cdUp();
+            scriptParent.mkPath(resourceFolderName);
         }
 
         return resourceFolderName;
@@ -132,17 +133,49 @@ function importMovieFFmpeg(): boolean {
         return this.prefUI;
     };
 
+    /**
+     * Search system PATH env var, as well as any (optional) paths provided for the specific binary.
+     * @param {string} bin - Name of the binary to find.
+     * @param {string[]} paths - Optional array of paths to include in search.
+     * @returns {string} Return path if found, "" otherwise.
+     */
+    this.getBinPath = function (bin, paths) {
+        var paths = paths || [];
+
+        var pathSplit = about.isWindowsArch() ? ";" : ":";
+        var envPaths: string[] = System.getenv("PATH").split(pathSplit);
+        var searchPaths: string[] = paths.concat(envPaths);
+        var searchResults: string[] = searchPaths.filter(function (path) {
+            return new QFile(
+                fileMapper.toNativePath(`${path}/${bin}`)
+            ).exists();
+        });
+
+        // bin detected.
+        if (searchResults.length) {
+            return fileMapper.toNativePath(`${searchResults[0]}/${bin}`);
+        }
+
+        return "";
+    };
+
+    /**
+     * Global consts.
+     */
     const CURL_BIN: string = about.isWindowsArch() ? "curl.exe" : "curl";
-    const CURL_PATH: string = about.isWindowsArch()
-        ? fileMapper.toNativePath(
-              `${specialFolders.bin}/bin_3rdParty/${CURL_BIN}`
-          )
-        : `/usr/bin/${CURL_BIN}`;
+    const CURL_PATH: string = this.getBinPath(CURL_BIN, [
+        `${specialFolders.bin}/bin_3rdParty/`,
+    ]);
     const FFMPEG_BIN: string = about.isWindowsArch() ? "ffmpeg.exe" : "ffmpeg";
     const SCRIPT_RESOURCE_PATH: string = this.getScriptResourcePath();
     const TEMP_DIR: string = this.getTempDirectory();
     const IMAGE_EXT = this.getPreferences().videoExt;
     const AUDIO_EXT = this.getPreferences().audioExt;
+    const ZIP_BIN = about.isWindowsArch() ? "7z.exe" : "7za";
+    const ZIP_PATH = this.getBinPath(ZIP_BIN, [
+        `${specialFolders.bin}/bin_3rdParty/`,
+    ]);
+    const TAR_PATH = this.getBinPath("tar");
 
     /**
      * Convert the input movie using FFmpeg to an image sequence
@@ -162,7 +195,7 @@ function importMovieFFmpeg(): boolean {
             // This shouldn't be relevant to Windows.
             if (about.isMacArch() || about.isLinuxArch()) {
                 var proc = new QProcess();
-                proc.start("bash", ["chmod", "+x", ffmpegPath]);
+                proc.start("chmod", ["+x", ffmpegPath]);
                 var procStarted = proc.waitForStarted(1000);
                 // Chmod unsuccessful.
                 if (!procStarted) {
@@ -400,6 +433,9 @@ function importMovieFFmpeg(): boolean {
                     "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.7z";
             } else if (about.isMacArch()) {
                 url = "https://evermeet.cx/ffmpeg/getrelease/7z";
+            } else {
+                url =
+                    "https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz";
             }
 
             return url;
@@ -410,33 +446,55 @@ function importMovieFFmpeg(): boolean {
          * @param {string} - Path to the downloaded .7z to extract.
          * @returns {boolean} true if successful, false otherwise.
          */
-        this._extractFFmpeg = function (zipPath: string): boolean {
-            const ZIP_BIN = about.isWindowsArch() ? "7z.exe" : "7za";
-            const ZIP_PATH = fileMapper.toNativePath(
-                `${specialFolders.bin}/bin_3rdParty/${ZIP_BIN}`
-            );
+        this._extractFFmpeg = function (archivePath: string): boolean {
+            var bin: string;
+            var args: string[];
+
+            // Linux uses tar, Windows/MacOS use 7z.
+            if (about.isLinuxArch()) {
+                bin = TAR_PATH;
+                args = [
+                    "-xf", // Extract file
+                    archivePath,
+                    "--wildcards", // Filter only FFmpeg bin
+                    "--no-anchored",
+                    "*ffmpeg",
+                    "--strip-components", // Don't extract into folder
+                    "1",
+                ];
+            } else {
+                bin = ZIP_PATH;
+                args = [
+                    "e", // Extract
+                    archivePath,
+                    `-o${SCRIPT_RESOURCE_PATH}`, // Output dir
+                    FFMPEG_BIN, // Filter only FFmpeg bin
+                    "-r", // Search recursively
+                ];
+            }
             var proc = new QProcess();
-            var zipArgs: string[] = [
-                "e", // Extract
-                zipPath, // Archive path
-                `-o${SCRIPT_RESOURCE_PATH}`, // Output dir
-                FFMPEG_BIN, // Filter only FFmpeg bin
-                "-r", // Search recursively
-            ];
-            proc.start(ZIP_PATH, zipArgs);
+            proc.setWorkingDirectory(SCRIPT_RESOURCE_PATH);
+            proc.start(bin, args);
             var procStarted = proc.waitForStarted(1000);
 
-            // Unable to launch 7z|7za.
+            // Unable to launch 7z|7za|tar.
             if (!procStarted) {
                 return false;
             }
 
             var procReturn: boolean = proc.waitForFinished(20000);
 
-            if (procReturn) {
+            if (
+                procReturn &&
+                new QFile(
+                    fileMapper.toNativePath(
+                        `${SCRIPT_RESOURCE_PATH}/${FFMPEG_BIN}`
+                    )
+                )
+            ) {
                 this.downloadUI.setLabelText("Cleaning up.");
                 this.downloadUI.setValue(3);
-                new QFile(zipPath).remove(); // Remove temp downloaded file.
+                new QFile(archivePath).remove(); // Remove temp downloaded file.
                 this.sleepFor(500); // Give time to update dialog.
                 return true;
             }
@@ -451,8 +509,11 @@ function importMovieFFmpeg(): boolean {
         this.downloadUI.setValue(1);
 
         var ffmpegUrl: string = this._getFFmpegUrl();
+        var ffmpegDownloadExt = about.isLinuxArch() ? "xz" : "7z";
         var ffmpegDownloadPath: string = fileMapper.toNativePath(
-            `${this.getScriptResourcePath(true)}/ffmpeg_download.7z`
+            `${this.getScriptResourcePath(
+                true
+            )}/ffmpeg_download.${ffmpegDownloadExt}`
         ); // Create resource path if not already present.
 
         // curl doesn't exist - exit.
@@ -487,12 +548,12 @@ function importMovieFFmpeg(): boolean {
         }
 
         // Verify operations were successful and FFmpeg now exists in the expected location.
-        var ffmpegBin = new QFileInfo(
+        var ffmpegPath = new QFileInfo(
             fileMapper.toNativePath(`${SCRIPT_RESOURCE_PATH}/${FFMPEG_BIN}`)
         );
-        if (ffmpegBin.exists()) {
+        if (ffmpegPath.exists()) {
             this.downloadUI.setValue(4); // Download complete, UI exits automatically.
-            return ffmpegBin.absoluteFilePath();
+            return ffmpegPath.absoluteFilePath();
         }
 
         // Either the download or extraction failed.
@@ -506,19 +567,9 @@ function importMovieFFmpeg(): boolean {
      * @return {string} Path of the detected or downloaded FFmpeg binary.
      */
     this.getFFmpegPath = function (): string {
-        var scriptResourcePath: string[] = [SCRIPT_RESOURCE_PATH];
-        var pathSplit = about.isWindowsArch() ? ";" : ":";
-        var envPaths: string[] = System.getenv("PATH").split(pathSplit);
-        var paths: string[] = scriptResourcePath.concat(envPaths);
-        var ffmpegPath: string[] = paths.filter(function (path) {
-            return new QFile(
-                fileMapper.toNativePath(`${path}/${FFMPEG_BIN}`)
-            ).exists();
-        });
-
-        // FFmpeg found in PATH or script resource dir.
-        if (ffmpegPath.length) {
-            return fileMapper.toNativePath(`${ffmpegPath[0]}/${FFMPEG_BIN}`);
+        var ffmpegPath = this.getBinPath(FFMPEG_BIN, [SCRIPT_RESOURCE_PATH]);
+        if (ffmpegPath) {
+            return ffmpegPath;
         }
 
         // FFmpeg not found - prompt the user to download FFmpeg.
@@ -623,15 +674,6 @@ function importMovieFFmpeg(): boolean {
     /**
      * Main
      */
-
-    // Not fully supported platforms.
-    if (about.isMacArch()) {
-        MessageBox.information("Mac support is currently Beta.");
-    } else if (about.isLinuxArch()) {
-        MessageBox.information(
-            "Linux support is currently Beta.\nffmpeg will need to already be in the PATH as download support is not implemented."
-        );
-    }
 
     // Preference dialog
     // Open preference dialog to set formats and close without running script.
