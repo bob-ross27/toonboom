@@ -308,6 +308,8 @@ function importMovieFFmpeg(): boolean {
 
         this.convertUI = this._createConvertUI();
         this.convertUI.show();
+        this.convertUI.raise();
+        this.convertUI.activateWindow();
 
         // Find expected frame count.
         var frameCount: number = this._findMovieFrames(inputMovieFile);
@@ -343,12 +345,17 @@ function importMovieFFmpeg(): boolean {
         });
 
         proc.start(ffmpegPath, ffmpegArgs);
+        var procStarted = proc.waitForStarted(1500);
+        if (!procStarted) {
+            MessageLog.trace("this.convertMovie : FFmpeg failed to start.");
+            return false;
+        }
+
         this.convertUI.setLabelText("\nConverting video using FFmpeg...");
         this.convertUI.maximum = fileCount;
         this.timer.start(50);
 
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
+        while (proc.state() === QProcess.Running) {
             // Kill ffmpeg process if user cancels conversion.
             if (this.convertUI.wasCanceled) {
                 this.timer.stop();
@@ -356,19 +363,26 @@ function importMovieFFmpeg(): boolean {
                 this.convertUI.close();
                 return false;
             }
-
-            // Exit if files are completed.
-            if (convertedFiles >= fileCount) {
-                this.timer.stop();
-                // ProgressDialog should automatically close, but formats such as mkv may report slightly different
-                // framecounts during _findMovieFrames than are actually converted.
-                this.convertUI.close();
-                this.sleepFor(500); // Sleep slightly longer in case FFmpeg is still writing the final file.
-                break;
-            }
         }
 
+        this.timer.stop();
         var procReturn: boolean = proc.exitStatus();
+
+        // ProgressDialog should automatically close, but formats such as mkv may report slightly different
+        // framecounts during _findMovieFrames than are actually converted.
+        // TODO: Dialog popping up again after import dialog.
+        if (convertedFiles > fileCount) {
+            this.convertUI.close();
+        }
+
+        // FFmpeg has exited but conversion is not complete.
+        if (convertedFiles < fileCount) {
+            this.convertUI.close();
+            MessageBox.information(
+                "FFmpeg exited without converting all frames."
+            );
+            return false;
+        }
 
         // Verify exit code
         if (procReturn) {
