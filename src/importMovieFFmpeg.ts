@@ -234,12 +234,13 @@ function importMovieFFmpeg(): boolean {
         /**
          * Find the expected framecount to query by running a
          * dummy FFmpeg session and regexing the output.
-         * @param {string} inputMovieFile - Path to the user provided movie.
-         * @return {int | boolean} Framecount if successful, false otherwise.
+         * Additionally ensure video stream exists, and whether audio stream
+         * is present.
+         * @param {QFileInfo} inputMovieFile - Path to the user provided movie.
+         * @return {object | boolean} Object containing the framecount, and where audio/video streams detected.
+         * false otherwise.
          */
-        this._findMovieFrames = function (
-            inputMovieFile: string
-        ): number | boolean {
+        this._parseVideoAttributes = function (inputMovieFile) {
             var proc = new QProcess();
             var ffmpegArgs: string[] = [
                 "-i",
@@ -260,25 +261,35 @@ function importMovieFFmpeg(): boolean {
             }
 
             var procReturn: boolean = proc.waitForFinished(20000);
-            // Verify exit code
-            if (procReturn) {
-                // Fetch stderr output for parsing.
-                var outputStdErr = new QTextStream(
-                    proc.readAllStandardError()
-                ).readAll();
-                var framesRe = new RegExp(/.*frame=\s*(\d+)\s?fps=.*/);
-                if (outputStdErr.match(framesRe)) {
-                    return parseInt(outputStdErr.match(framesRe)[1], 10);
-                }
-            } else {
+            if (!procReturn) {
                 // Proc timed out.
                 MessageLog.trace(
                     "Error: FFmpeg timed out when detecting movie framecount."
                 );
                 proc.kill();
+                return false;
             }
 
-            return false;
+            // Fetch stderr output for parsing.
+            var outputStdErr = new QTextStream(
+                proc.readAllStandardError()
+            ).readAll();
+
+            // Regex
+            var framesRe = new RegExp(/.*frame=\s*(\d+)\s?fps=.*/);
+            var audioRe = new RegExp(/(Stream #\d:\d(?:\(und\))?: Audio)/);
+            var videoRe = new RegExp(/(Stream #\d:\d(?:\(und\))?: Video)/);
+
+            var frames: number;
+            if (outputStdErr.match(framesRe)) {
+                frames = parseInt(outputStdErr.match(framesRe)[1], 10);
+            }
+
+            return {
+                audio: outputStdErr.match(audioRe),
+                video: outputStdErr.match(videoRe),
+                frames,
+            };
         };
 
         /**
@@ -298,13 +309,92 @@ function importMovieFFmpeg(): boolean {
             return this.convertUI;
         };
 
+        /**
+         * Convert Video using FFmpeg.
+         * @param {QFileInfo} inputMovieFile - Path to the user provided movie.
+         * @returns {boolean} true if proc exits normally, false otherwise.
+         */
+        this._convertVideo = function (movieFile): boolean {
+            var movieBasename: string = movieFile.baseName();
+
+            // Conversion process
+            var proc = new QProcess();
+            var ffmpegArgs: string[] = [
+                "-y",
+                "-i",
+                `${movieFile.absoluteFilePath()}`,
+                fileMapper.toNativePath(
+                    `${TEMP_DIR}/${movieBasename}-%04d.${IMAGE_EXT}`
+                ),
+            ];
+
+            proc.start(ffmpegPath, ffmpegArgs);
+
+            // Verify proc started successfully.
+            var procStarted = proc.waitForStarted(1500);
+            if (!procStarted) {
+                return false;
+            }
+
+            // Run while proc is still active.
+            while (proc.state() === QProcess.Running) {
+                if (this.convertUI.wasCanceled) {
+                    this.timer.stop();
+                    proc.kill();
+                    this.convertUI.close();
+                    return false;
+                }
+            }
+
+            return proc.exitStatus();
+        };
+
+        /**
+         * Convert Audio using FFmpeg.
+         * @param {QFileInfo} inputMovieFile - Path to the user provided movie.
+         * @returns {boolean} true if proc exits normally, false otherwise.
+         */
+        this._convertAudio = function (movieFile): boolean {
+            var movieBasename: string = movieFile.baseName();
+
+            // Conversion process
+            var proc = new QProcess();
+            var ffmpegArgs: string[] = [
+                "-y",
+                "-i",
+                `${movieFile.absoluteFilePath()}`,
+                fileMapper.toNativePath(
+                    `${TEMP_DIR}/${movieBasename}.${AUDIO_EXT}`
+                ),
+            ];
+
+            proc.start(ffmpegPath, ffmpegArgs);
+
+            // Verify proc started successfully.
+            var procStarted = proc.waitForStarted(1500);
+            if (!procStarted) {
+                return false;
+            }
+
+            // Run while proc is still active.
+            while (proc.state() === QProcess.Running) {
+                if (this.convertUI.wasCanceled) {
+                    this.timer.stop();
+                    proc.kill();
+                    this.convertUI.close();
+                    return false;
+                }
+            }
+
+            return proc.exitStatus();
+        };
+
         // If FFmpeg isn't able to launch, exit.
         if (!this._testFFmpegExecutable()) {
             return false;
         }
 
         var inputMovieFile = new QFileInfo(inputMovie);
-        var inputMovieBasename: string = inputMovieFile.baseName();
 
         this.convertUI = this._createConvertUI();
         this.convertUI.show();
@@ -312,22 +402,16 @@ function importMovieFFmpeg(): boolean {
         this.convertUI.activateWindow();
 
         // Find expected frame count.
-        var frameCount: number = this._findMovieFrames(inputMovieFile);
-        var fileCount = frameCount + 1; // +1 for audio
+        var movieAttributes = this._parseVideoAttributes(inputMovieFile);
+        if (!movieAttributes) {
+            return false;
+        }
 
-        // Conversion process
-        var proc = new QProcess();
-        var ffmpegArgs: string[] = [
-            "-y",
-            "-i",
-            `${inputMovieFile.absoluteFilePath()}`,
-            fileMapper.toNativePath(
-                `${TEMP_DIR}/${inputMovieBasename}-%04d.${IMAGE_EXT}`
-            ),
-            fileMapper.toNativePath(
-                `${TEMP_DIR}/${inputMovieBasename}.${AUDIO_EXT}`
-            ),
-        ];
+        var fileCount = movieAttributes.audio
+            ? movieAttributes.frames + 1
+            : movieAttributes.frames;
+
+        this.convertUI.maximum = fileCount;
 
         var convertedFiles = 0;
         var tempDir = new QDir(TEMP_DIR);
@@ -344,29 +428,28 @@ function importMovieFFmpeg(): boolean {
             this.convertUI.setValue(convertedFiles);
         });
 
-        proc.start(ffmpegPath, ffmpegArgs);
-        var procStarted = proc.waitForStarted(1500);
-        if (!procStarted) {
-            MessageLog.trace("this.convertMovie : FFmpeg failed to start.");
-            return false;
-        }
-
-        this.convertUI.setLabelText("\nConverting video using FFmpeg...");
-        this.convertUI.maximum = fileCount;
         this.timer.start(50);
 
-        while (proc.state() === QProcess.Running) {
-            // Kill ffmpeg process if user cancels conversion.
-            if (this.convertUI.wasCanceled) {
-                this.timer.stop();
-                proc.kill();
-                this.convertUI.close();
+        if (movieAttributes.video) {
+            this.convertUI.setLabelText("\nConverting video using FFmpeg...");
+            var videoConverted = this._convertVideo(inputMovieFile);
+            if (!videoConverted) {
                 return false;
             }
         }
 
-        this.timer.stop();
-        var procReturn: boolean = proc.exitStatus();
+        if (movieAttributes.audio) {
+            this.convertUI.setLabelText("\nConverting audio using FFmpeg...");
+            var audioConverted = this._convertAudio(inputMovieFile);
+            if (!audioConverted) {
+                return false;
+            }
+        }
+
+        // Cancel timer if still active.
+        if (this.timer.active) {
+            this.timer.stop();
+        }
 
         // ProgressDialog should automatically close, but formats such as mkv may report slightly different
         // framecounts during _findMovieFrames than are actually converted.
@@ -384,12 +467,7 @@ function importMovieFFmpeg(): boolean {
             return false;
         }
 
-        // Verify exit code
-        if (procReturn) {
-            return true;
-        }
-
-        return false;
+        return true;
     };
 
     /**
