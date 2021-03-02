@@ -507,10 +507,10 @@ function importMovieFFmpeg(): boolean {
          */
         this._createDownloadUI = function () {
             this.downloadUI = new QProgressDialog(this, "Downloading FFmpeg");
-            this.downloadUI.maximum = 4; // Download > Extract > Clean > Complete
+            this.downloadUI.maximum = 0; // Download > Extract > Clean > Complete
             this.downloadUI.value = 0;
             this.downloadUI.minimumDuration = 0;
-            this.downloadUI.setCancelButton(null);
+            this.downloadUI.setCancelButton(new QPushButton("Cancel"));
             return this.downloadUI;
         };
 
@@ -531,6 +531,22 @@ function importMovieFFmpeg(): boolean {
             }
 
             return url;
+        };
+
+        /**
+         * Clean up download archive and ffmpeg bin when the user
+         * cancels operations.
+         * @param {string} archive - Path to the downloadd archive.
+         */
+        this._cleanDownloadedFiles = function (archive) {
+            var archive = archive || false;
+            if (archive && new QFile(archive).exists()) {
+                new QFile(archive).remove();
+            }
+
+            if (new QFile(FFMPEG_BIN).exists()) {
+                new QFile(FFMPEG_BIN).remove();
+            }
         };
 
         /**
@@ -574,10 +590,18 @@ function importMovieFFmpeg(): boolean {
                 return false;
             }
 
-            var procReturn: boolean = proc.waitForFinished(20000);
+            while (proc.state() === QProcess.Running) {
+                if (this.downloadUI.wasCanceled) {
+                    proc.kill();
+                    this.downloadUI.close();
+                    this.sleepFor(600); // Allow time for process to release lock on file.
+                    this._cleanDownloadedFiles(archivePath);
+                    return false;
+                }
+            }
 
             if (
-                procReturn &&
+                proc.exitStatus() &&
                 new QFile(
                     fileMapper.toNativePath(
                         `${SCRIPT_RESOURCE_PATH}/${FFMPEG_BIN}`
@@ -585,9 +609,8 @@ function importMovieFFmpeg(): boolean {
                 )
             ) {
                 this.downloadUI.setLabelText("Cleaning up.");
-                this.downloadUI.setValue(3);
                 new QFile(archivePath).remove(); // Remove temp downloaded file.
-                this.sleepFor(500); // Give time to update dialog.
+                this.downloadUI.close();
                 return true;
             }
 
@@ -596,9 +619,10 @@ function importMovieFFmpeg(): boolean {
 
         // Show progress UI and set initial state.
         this.downloadUI = this._createDownloadUI();
-        this.downloadUI.show();
         this.downloadUI.setLabelText("Downloading archive.");
-        this.downloadUI.setValue(1);
+        this.downloadUI.show();
+        this.downloadUI.raise();
+        this.downloadUI.activateWindow();
 
         var ffmpegUrl: string = this._getFFmpegUrl();
         var ffmpegDownloadExt = about.isLinuxArch() ? "xz" : "7z";
@@ -629,13 +653,19 @@ function importMovieFFmpeg(): boolean {
             return "";
         }
 
-        // Launch proc, wait for finished signal or timeout.
-        var procReturn: boolean = proc.waitForFinished(30000);
+        while (proc.state() === QProcess.Running) {
+            if (this.downloadUI.wasCanceled) {
+                proc.kill();
+                this.downloadUI.close();
+                this.sleepFor(600); // Allow time for process to release lock on file.
+                this._cleanDownloadedFiles(ffmpegDownloadPath);
+                return "";
+            }
+        }
 
         // Extract FFmpeg binary from downloaded archive.
-        if (procReturn) {
+        if (proc.exitStatus()) {
             this.downloadUI.setLabelText("Extracting FFmpeg from archive.");
-            this.downloadUI.setValue(2);
             this._extractFFmpeg(ffmpegDownloadPath);
         }
 
@@ -644,7 +674,6 @@ function importMovieFFmpeg(): boolean {
             fileMapper.toNativePath(`${SCRIPT_RESOURCE_PATH}/${FFMPEG_BIN}`)
         );
         if (ffmpegPath.exists()) {
-            this.downloadUI.setValue(4); // Download complete, UI exits automatically.
             return ffmpegPath.absoluteFilePath();
         }
 
