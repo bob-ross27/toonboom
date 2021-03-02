@@ -507,7 +507,8 @@ function importMovieFFmpeg(): boolean {
          */
         this._createDownloadUI = function () {
             this.downloadUI = new QProgressDialog(this, "Downloading FFmpeg");
-            this.downloadUI.maximum = 0; // Download > Extract > Clean > Complete
+            this.downloadUI.setWindowFlags(Qt.FramelessWindowHint);
+            this.downloadUI.maximum = 0;
             this.downloadUI.value = 0;
             this.downloadUI.minimumDuration = 0;
             this.downloadUI.setCancelButton(new QPushButton("Cancel"));
@@ -550,6 +551,43 @@ function importMovieFFmpeg(): boolean {
         };
 
         /**
+         * Use curl to download ffmpeg.
+         * @param {string} url - URL to download ffmpeg from.
+         * @param {string} archivePath - Path to download the archive to.
+         * @returns {boolean} true if proc exits normally, false otherwise.
+         */
+        this._downloadArchive = function (url, archivePath) {
+            var curlArgs: string[] = [
+                url,
+                "-k", // insecure - don't verify ssl cert
+                "-L", // Follow redirects
+                "--output", // Output to a file instead of stdout
+                archivePath,
+            ];
+            var proc = new QProcess();
+            this.downloadUI.setLabelText("\nDownloading archive...");
+            proc.start(CURL_PATH, curlArgs);
+            var procStarted = proc.waitForStarted(1000);
+
+            // Unable to launch curl.
+            if (!procStarted) {
+                return "";
+            }
+
+            while (proc.state() === QProcess.Running) {
+                if (this.downloadUI.wasCanceled) {
+                    proc.kill();
+                    this.downloadUI.close();
+                    this.sleepFor(600); // Allow time for process to release lock on file.
+                    this._cleanDownloadedFiles(archivePath);
+                    return "";
+                }
+            }
+
+            return proc.exitStatus();
+        };
+
+        /**
          * Extract the FFmpeg binary using 7-zip, and remove the downloaded archive.
          * @param {string} - Path to the downloaded .7z to extract.
          * @returns {boolean} true if successful, false otherwise.
@@ -580,8 +618,10 @@ function importMovieFFmpeg(): boolean {
                     "-r", // Search recursively
                 ];
             }
+
             var proc = new QProcess();
             proc.setWorkingDirectory(SCRIPT_RESOURCE_PATH);
+            this.downloadUI.setLabelText("\nExtracting FFmpeg from archive...");
             proc.start(bin, args);
             var procStarted = proc.waitForStarted(1000);
 
@@ -608,7 +648,7 @@ function importMovieFFmpeg(): boolean {
                     )
                 )
             ) {
-                this.downloadUI.setLabelText("Cleaning up.");
+                this.downloadUI.setLabelText("\nCleaning up...");
                 new QFile(archivePath).remove(); // Remove temp downloaded file.
                 this.downloadUI.close();
                 return true;
@@ -617,9 +657,13 @@ function importMovieFFmpeg(): boolean {
             return false;
         };
 
+        // curl doesn't exist - exit.
+        if (!new QFile(CURL_PATH).exists()) {
+            return "";
+        }
+
         // Show progress UI and set initial state.
         this.downloadUI = this._createDownloadUI();
-        this.downloadUI.setLabelText("Downloading archive.");
         this.downloadUI.show();
         this.downloadUI.raise();
         this.downloadUI.activateWindow();
@@ -632,40 +676,9 @@ function importMovieFFmpeg(): boolean {
             )}/ffmpeg_download.${ffmpegDownloadExt}`
         ); // Create resource path if not already present.
 
-        // curl doesn't exist - exit.
-        if (!new QFile(CURL_PATH).exists()) {
-            return "";
-        }
-
-        var curlArgs: string[] = [
-            ffmpegUrl,
-            "-k", // insecure - don't verify ssl cert
-            "-L", // Follow redirects
-            "--output", // Output to a file instead of stdout
-            ffmpegDownloadPath,
-        ];
-        var proc = new QProcess();
-        proc.start(CURL_PATH, curlArgs);
-        var procStarted = proc.waitForStarted(1000);
-
-        // Unable to launch curl.
-        if (!procStarted) {
-            return "";
-        }
-
-        while (proc.state() === QProcess.Running) {
-            if (this.downloadUI.wasCanceled) {
-                proc.kill();
-                this.downloadUI.close();
-                this.sleepFor(600); // Allow time for process to release lock on file.
-                this._cleanDownloadedFiles(ffmpegDownloadPath);
-                return "";
-            }
-        }
-
-        // Extract FFmpeg binary from downloaded archive.
-        if (proc.exitStatus()) {
-            this.downloadUI.setLabelText("Extracting FFmpeg from archive.");
+        // Download and extract ffmpeg.
+        var downloaded = this._downloadArchive(ffmpegUrl, ffmpegDownloadPath);
+        if (downloaded && new QFile(ffmpegDownloadPath).exists()) {
             this._extractFFmpeg(ffmpegDownloadPath);
         }
 
