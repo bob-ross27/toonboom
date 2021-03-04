@@ -277,8 +277,8 @@ function importMovieFFmpeg(): boolean {
 
             // Regex
             var framesRe = new RegExp(/.*frame=\s*(\d+)\s?fps=.*/);
-            var audioRe = new RegExp(/(Stream #\d:\d(?:\(und\))?: Audio)/);
-            var videoRe = new RegExp(/(Stream #\d:\d(?:\(und\))?: Video)/);
+            var audioRe = new RegExp(/(Stream #\d:\d(?:\(.*\))?: Audio)/);
+            var videoRe = new RegExp(/(Stream #\d:\d(?:\(.*\))?: Video)/);
 
             var frames: number;
             if (outputStdErr.match(framesRe)) {
@@ -316,6 +316,7 @@ function importMovieFFmpeg(): boolean {
          */
         this._convertVideo = function (movieFile): boolean {
             var movieBasename: string = movieFile.baseName();
+            var movieOutputName = movieBasename.replace(/-/g, "_");
 
             // Conversion process
             var proc = new QProcess();
@@ -324,7 +325,7 @@ function importMovieFFmpeg(): boolean {
                 "-i",
                 `${movieFile.absoluteFilePath()}`,
                 fileMapper.toNativePath(
-                    `${TEMP_DIR}/${movieBasename}-%04d.${IMAGE_EXT}`
+                    `${TEMP_DIR}/${movieOutputName}-%04d.${IMAGE_EXT}`
                 ),
             ];
 
@@ -356,6 +357,7 @@ function importMovieFFmpeg(): boolean {
          */
         this._convertAudio = function (movieFile): boolean {
             var movieBasename: string = movieFile.baseName();
+            var movieOutputName = movieBasename.replace(/-/g, "_");
 
             // Conversion process
             var proc = new QProcess();
@@ -364,7 +366,7 @@ function importMovieFFmpeg(): boolean {
                 "-i",
                 `${movieFile.absoluteFilePath()}`,
                 fileMapper.toNativePath(
-                    `${TEMP_DIR}/${movieBasename}.${AUDIO_EXT}`
+                    `${TEMP_DIR}/${movieOutputName}.${AUDIO_EXT}`
                 ),
             ];
 
