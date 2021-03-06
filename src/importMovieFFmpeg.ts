@@ -1,15 +1,49 @@
 "use strict";
 
 /**
- * Mimic the built-in movie import with FFmpeg.
+ * Mimic the built-in movie import function using FFmpeg to support a broader
+ * range of formats and codecs.
  * Software: Harmony 17 Premium.
  * @version 0.1.0
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function importMovieFFmpeg(): boolean {
     /**
+     * Basic logger.
+     * @param {string} logLevel - Level to output the log as.
+     *     DEBUG: Detailed info to help with isolating potential problems.
+     *     INFO: General messages indicating success or approval largely within private funtions.
+     *     WARN: Warning messages that don't trigger dialog output, but indicate something failed.
+     *     ERROR: Fatal errors that should trigger an output to the user.
+     * @param {string} message - Message to log.
+     */
+    this.log = function (inputLogLevel: string, message: string) {
+        // Exit if no message passed.
+        if (!message) {
+            return;
+        }
+
+        const LOG_LEVELS = ["DEBUG", "INFO", "WARN", "ERROR"];
+        var logLevel = inputLogLevel.toUpperCase() || "INFO";
+
+        if (LOG_LEVELS.indexOf(logLevel) === -1) {
+            logLevel = "INFO";
+        }
+
+        // Output log.
+        if (logLevel === "DEBUG") {
+            MessageLog.debug(`DEBUG: ${message}`);
+        } else if (logLevel === "INFO") {
+            MessageLog.trace(`INFO: ${message}`);
+        } else if (logLevel === "WARN") {
+            MessageLog.trace(`WARNING: ${message}`);
+        } else {
+            MessageLog.error(`ERROR: ${message}`);
+        }
+    };
+    /**
      * Return the path to the script resource folder.
-     * Create the folder if necessary.
+     * Create the folder if the bool createFolder passed.
      * @param {boolean} createFolder - Whether to create the folder.
      * @returns {string} Path to the script resource folder.
      */
@@ -25,15 +59,16 @@ function importMovieFFmpeg(): boolean {
             scriptParent.mkPath(resourceFolderName);
         }
 
+        this.log("debug", `Resource folder: ${resourceFolderName}.`);
         return resourceFolderName;
     };
 
     /**
-     * Return the path to a temporary directory.
+     * Create and return the path to a temporary directory.
      * @returns {string} Path to the temporary directory.
      */
     this.getTempDirectory = function (): string {
-        var folderName = QUuid.createUuid();
+        var folderName: string = QUuid.createUuid();
         var tempFolderName: string = fileMapper.toNativePath(
             `${specialFolders.temp}/${folderName}`
         );
@@ -42,41 +77,58 @@ function importMovieFFmpeg(): boolean {
             new QDir(specialFolders.temp).mkdir(folderName);
         }
 
+        this.log("debug", `Temp folder: ${tempFolderName}.`);
         return tempFolderName;
     };
 
     /**
-     * Try to get preferences, return default values if not found.
-     * @returns {JSON} Object containing preference values.
+     * Try to get JSON encoded script preferences from
+     * the Harmony preferences. Return default values if not found.
+     * @returns {Object} Object containing preference values.
      */
     this.getPreferences = function () {
-        var prefObj: string = preferences.getString(
+        var defaultPreferences = { videoExt: "tga", audioExt: "wav" };
+        var getPreferences: string = preferences.getString(
             "IMPORT_MOVIE_FFMPEG_PREF",
             ""
         );
         // Default values.
-        if (!prefObj) {
-            return { videoExt: "tga", audioExt: "wav" };
+        if (!getPreferences) {
+            this.log(
+                "debug",
+                `Loaded default preferences: ${JSON.stringify(
+                    defaultPreferences
+                )}.`
+            );
+            return defaultPreferences;
         }
 
-        return JSON.parse(prefObj);
+        this.log("debug", `Loaded user preferences: ${getPreferences}.`);
+        return JSON.parse(getPreferences);
     };
 
     /**
-     * Save the preferences as a Harmony preference.
-     * @param {JSON} prefObj - Object containing the preferences to store.
+     * Save the preferences as a JSON encoded string in the Harmony preferences.
+     * @param {Object} userPreferences - Object containing the preferences to store.
      */
-    this.setPreferences = function (prefObj: JSON) {
+    this.setPreferences = function (userPreferences) {
         preferences.setString(
             "IMPORT_MOVIE_FFMPEG_PREF",
-            JSON.stringify(prefObj)
+            JSON.stringify(userPreferences)
+        );
+        this.log(
+            "debug",
+            `preferences saved: ${JSON.stringify(userPreferences)}.`
         );
     };
 
     /**
      * Create a dialog for setting preferences.
+     * Default the audio/video format based on the
+     * user preferences.
+     * @returns {QWidget} UI object.
      */
-    this.createPreferenceDialog = function () {
+    this.createPreferenceDialog = function (): QWidget {
         var prefs = this.getPreferences();
         var videoExt: string[] = ["jpeg", "png", "tga"];
         var audioExt: string[] = ["mp3", "wav"];
@@ -134,12 +186,12 @@ function importMovieFFmpeg(): boolean {
     };
 
     /**
-     * Search system PATH env var, as well as any (optional) paths provided for the specific binary.
+     * Search system PATH env var, as well as any (optionally) provided paths for the specific binary.
      * @param {string} bin - Name of the binary to find.
      * @param {string[]} paths - Optional array of paths to include in search.
      * @returns {string} Return path if found, "" otherwise.
      */
-    this.getBinPath = function (bin, paths) {
+    this.getBinPath = function (bin: string, paths: string[]): string {
         var paths = paths || [];
 
         var pathSplit = about.isWindowsArch() ? ";" : ":";
@@ -153,9 +205,12 @@ function importMovieFFmpeg(): boolean {
 
         // bin detected.
         if (searchResults.length) {
-            return fileMapper.toNativePath(`${searchResults[0]}/${bin}`);
+            var binPath = fileMapper.toNativePath(`${searchResults[0]}/${bin}`);
+            this.log("debug", `Binary ${bin} found at: ${binPath}`);
+            return binPath;
         }
 
+        this.log("debug", `Unable to find path to ${bin}.`);
         return "";
     };
 
@@ -190,6 +245,7 @@ function importMovieFFmpeg(): boolean {
     ): boolean {
         /**
          * Use chmod to set executible bit.
+         * @returns {boolean} true if bin is exectuable, false otherwise.
          */
         this._setFFmpegExecutable = function (): boolean {
             // This shouldn't be relevant to Windows.
@@ -199,6 +255,10 @@ function importMovieFFmpeg(): boolean {
                 var procStarted = proc.waitForStarted(1000);
                 // Chmod unsuccessful.
                 if (!procStarted) {
+                    this.log(
+                        "warn",
+                        `Unable to launch process to set FFmpeg as executable.`
+                    );
                     return false;
                 }
                 var procReturn = proc.waitForFinished(3000);
@@ -219,6 +279,10 @@ function importMovieFFmpeg(): boolean {
             if (!new QFileInfo(ffmpegPath).isExecutable()) {
                 // Try to make executable.
                 if (!this._setFFmpegExecutable()) {
+                    this.log(
+                        "warn",
+                        `Unable to set FFmpeg binary as executable.`
+                    );
                     return false;
                 }
             }
@@ -228,7 +292,12 @@ function importMovieFFmpeg(): boolean {
             var procStarted = proc.waitForStarted(1000);
             var procFinished = proc.waitForStarted(3000);
 
-            return procStarted && procFinished;
+            if (procStarted && procFinished) {
+                return true;
+            }
+
+            this.log("warn", `FFmpeg binary not executable.`);
+            return false;
         };
 
         /**
@@ -257,14 +326,19 @@ function importMovieFFmpeg(): boolean {
             var procStarted: boolean = proc.waitForStarted(1000);
             // Process couldn't be started.
             if (!procStarted) {
+                this.log(
+                    "warn",
+                    `Unable to parse video to determine framecount and available streams.`
+                );
                 return false;
             }
 
             var procReturn: boolean = proc.waitForFinished(20000);
             if (!procReturn) {
                 // Proc timed out.
-                MessageLog.trace(
-                    "Error: FFmpeg timed out when detecting movie framecount."
+                this.log(
+                    "warn",
+                    `FFmpeg timed out when detecting movie framecount and available streams.`
                 );
                 proc.kill();
                 return false;
@@ -280,23 +354,28 @@ function importMovieFFmpeg(): boolean {
             var audioRe = new RegExp(/(Stream #\d:\d(?:\(.*\))?: Audio)/);
             var videoRe = new RegExp(/(Stream #\d:\d(?:\(.*\))?: Video)/);
 
+            var audioStream = outputStdErr.match(audioRe);
+            this.log("debug", `Audio stream detected: ${!!audioStream}`);
+            var videoStream = outputStdErr.match(videoRe);
+            this.log("debug", `Video stream detected: ${!!videoStream}`);
             var frames: number;
             if (outputStdErr.match(framesRe)) {
                 frames = parseInt(outputStdErr.match(framesRe)[1], 10);
             }
+            this.log("debug", `Video framecount detected: ${frames}`);
 
             return {
-                audio: outputStdErr.match(audioRe),
-                video: outputStdErr.match(videoRe),
+                audio: audioStream,
+                video: videoStream,
                 frames,
             };
         };
 
         /**
          * Create the QT Progress dialog.
-         * @returns {QWidget} Progress dialog.
+         * @returns {QProcessDialog} Progress dialog.
          */
-        this._createConvertUI = function () {
+        this._createConvertUI = function (): QProcessDialog {
             this.convertUI = new QProgressDialog(
                 this,
                 "Converting Images with FFmpeg"
@@ -311,10 +390,10 @@ function importMovieFFmpeg(): boolean {
 
         /**
          * Convert Video using FFmpeg.
-         * @param {QFileInfo} inputMovieFile - Path to the user provided movie.
+         * @param {QFileInfo} movieFile - Path to the user provided movie.
          * @returns {boolean} true if proc exits normally, false otherwise.
          */
-        this._convertVideo = function (movieFile): boolean {
+        this._convertVideo = function (movieFile: QFileInfo): boolean {
             var movieBasename: string = movieFile.baseName();
             var movieOutputName = movieBasename.replace(/-/g, "_");
 
@@ -334,6 +413,7 @@ function importMovieFFmpeg(): boolean {
             // Verify proc started successfully.
             var procStarted = proc.waitForStarted(1500);
             if (!procStarted) {
+                this.log("warn", `Unable to start FFmpeg to convert video.`);
                 return false;
             }
 
@@ -343,6 +423,10 @@ function importMovieFFmpeg(): boolean {
                     this.timer.stop();
                     proc.kill();
                     this.convertUI.close();
+                    this.log(
+                        "debug",
+                        `FFmpeg video conversion cancelled by user.`
+                    );
                     return false;
                 }
             }
@@ -375,6 +459,7 @@ function importMovieFFmpeg(): boolean {
             // Verify proc started successfully.
             var procStarted = proc.waitForStarted(1500);
             if (!procStarted) {
+                this.log("info", `Update to start FFmpeg to convert audio.`);
                 return false;
             }
 
@@ -384,6 +469,10 @@ function importMovieFFmpeg(): boolean {
                     this.timer.stop();
                     proc.kill();
                     this.convertUI.close();
+                    this.log(
+                        "warn",
+                        `FFmpeg audio conversion cancelled by user.`
+                    );
                     return false;
                 }
             }
@@ -391,6 +480,9 @@ function importMovieFFmpeg(): boolean {
             return proc.exitStatus();
         };
 
+        /**
+         * convertMovie - Main
+         */
         // If FFmpeg isn't able to launch, exit.
         if (!this._testFFmpegExecutable()) {
             return false;
@@ -403,12 +495,13 @@ function importMovieFFmpeg(): boolean {
         this.convertUI.raise();
         this.convertUI.activateWindow();
 
-        // Find expected frame count.
+        // Find expected frame count and available streams.
         var movieAttributes = this._parseVideoAttributes(inputMovieFile);
         if (!movieAttributes) {
             return false;
         }
 
+        // If audio stream is present, increment file count.
         var fileCount = movieAttributes.audio
             ? movieAttributes.frames + 1
             : movieAttributes.frames;
@@ -432,6 +525,7 @@ function importMovieFFmpeg(): boolean {
 
         this.timer.start(50);
 
+        // Video conversion stage
         if (movieAttributes.video) {
             this.convertUI.setLabelText("\nConverting video using FFmpeg...");
             var videoConverted = this._convertVideo(inputMovieFile);
@@ -440,6 +534,7 @@ function importMovieFFmpeg(): boolean {
             }
         }
 
+        // Audio conversion stage
         if (movieAttributes.audio) {
             this.convertUI.setLabelText("\nConverting audio using FFmpeg...");
             var audioConverted = this._convertAudio(inputMovieFile);
@@ -463,12 +558,10 @@ function importMovieFFmpeg(): boolean {
         // FFmpeg has exited but conversion is not complete.
         if (convertedFiles < fileCount) {
             this.convertUI.close();
-            MessageBox.information(
-                "FFmpeg exited without converting all frames."
-            );
+            this.log("error", `FFmpeg exited without converting all frames.`);
             return false;
         }
-
+        this.log("debug", `Input movie converted.`);
         return true;
     };
 
@@ -476,7 +569,7 @@ function importMovieFFmpeg(): boolean {
      * Create a TB Dialog to prompt user for selection.
      * @returns {Dialog} Dialog object.
      */
-    this.createUI = function () {
+    this.createDownloadPromptUI = function (): Dialog {
         this.ui = new Dialog();
         this.ui.okButtonText = "Download FFmpeg";
         this.ui.cancelButtonText = "Abort";
@@ -495,7 +588,9 @@ function importMovieFFmpeg(): boolean {
      */
     this.sleepFor = function (sleepDuration: number) {
         var now = new Date().getTime();
-        while (new Date().getTime() < now + sleepDuration) {}
+        while (new Date().getTime() < now + sleepDuration) {
+            /** Do nothing */
+        }
     };
 
     /**
@@ -507,7 +602,7 @@ function importMovieFFmpeg(): boolean {
          * Progress UI for downloading FFmpeg.
          * @returns {QProgressDialog} Created dialog
          */
-        this._createDownloadUI = function () {
+        this._createDownloadUI = function (): QProcessDialog {
             this.downloadUI = new QProgressDialog(this, "Downloading FFmpeg");
             this.downloadUI.setWindowFlags(Qt.FramelessWindowHint);
             this.downloadUI.maximum = 0;
@@ -518,8 +613,8 @@ function importMovieFFmpeg(): boolean {
         };
 
         /**
-         * Return the appropriate platform download url.
-         * @returns {string} URL for specific system architecture.
+         * Return the platform-specific download url.
+         * @returns {string} Download URL.
          */
         this._getFFmpegUrl = function (): string {
             var url: string;
@@ -533,15 +628,16 @@ function importMovieFFmpeg(): boolean {
                     "https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz";
             }
 
+            this.log("debug", `FFmpeg url: ${url}.`);
             return url;
         };
 
         /**
          * Clean up download archive and ffmpeg bin when the user
          * cancels operations.
-         * @param {string} archive - Path to the downloadd archive.
+         * @param {string} archive - Path to the downloaded archive.
          */
-        this._cleanDownloadedFiles = function (archive) {
+        this._cleanDownloadedFiles = function (archive: string) {
             var archive = archive || false;
             if (archive && new QFile(archive).exists()) {
                 new QFile(archive).remove();
@@ -550,6 +646,7 @@ function importMovieFFmpeg(): boolean {
             if (new QFile(FFMPEG_BIN).exists()) {
                 new QFile(FFMPEG_BIN).remove();
             }
+            this.log("debug", `Downloaded files removed.`);
         };
 
         /**
@@ -558,7 +655,10 @@ function importMovieFFmpeg(): boolean {
          * @param {string} archivePath - Path to download the archive to.
          * @returns {boolean} true if proc exits normally, false otherwise.
          */
-        this._downloadArchive = function (url, archivePath) {
+        this._downloadArchive = function (
+            url: string,
+            archivePath: string
+        ): boolean {
             var curlArgs: string[] = [
                 url,
                 "-k", // insecure - don't verify ssl cert
@@ -573,7 +673,8 @@ function importMovieFFmpeg(): boolean {
 
             // Unable to launch curl.
             if (!procStarted) {
-                return "";
+                this.log("warn", `Unable to start curl to download FFmpeg.`);
+                return false;
             }
 
             while (proc.state() === QProcess.Running) {
@@ -582,10 +683,17 @@ function importMovieFFmpeg(): boolean {
                     this.downloadUI.close();
                     this.sleepFor(600); // Allow time for process to release lock on file.
                     this._cleanDownloadedFiles(archivePath);
-                    return "";
+                    this.log("warn", `FFmpeg download cancelled by user.`);
+                    return false;
                 }
             }
 
+            this.log(
+                "info",
+                `Archive downloaded ${
+                    proc.exitStatus() ? "successfully" : "unsuccessfully"
+                }.`
+            );
             return proc.exitStatus();
         };
 
@@ -629,6 +737,12 @@ function importMovieFFmpeg(): boolean {
 
             // Unable to launch 7z|7za|tar.
             if (!procStarted) {
+                this.log(
+                    "warn",
+                    `Unable to start ${
+                        about.isLinuxArch ? "tar" : "7z"
+                    }. to extract FFmpeg.`
+                );
                 return false;
             }
 
@@ -638,6 +752,7 @@ function importMovieFFmpeg(): boolean {
                     this.downloadUI.close();
                     this.sleepFor(600); // Allow time for process to release lock on file.
                     this._cleanDownloadedFiles(archivePath);
+                    this.log("warn", `FFmpeg extraction cancelled by user.`);
                     return false;
                 }
             }
@@ -653,14 +768,23 @@ function importMovieFFmpeg(): boolean {
                 this.downloadUI.setLabelText("\nCleaning up...");
                 new QFile(archivePath).remove(); // Remove temp downloaded file.
                 this.downloadUI.close();
+                this.log("debug", `FFmpeg extracted successfully.`);
                 return true;
             }
 
+            this.log("warn", `FFmpeg extraction failed.`);
             return false;
         };
 
+        /**
+         * downloadFFmpeg Main
+         */
         // curl doesn't exist - exit.
         if (!new QFile(CURL_PATH).exists()) {
+            this.log(
+                "error",
+                `curl does not exist or could not be found. Please ensure curl is in the PATH.`
+            );
             return "";
         }
 
@@ -689,10 +813,12 @@ function importMovieFFmpeg(): boolean {
             fileMapper.toNativePath(`${SCRIPT_RESOURCE_PATH}/${FFMPEG_BIN}`)
         );
         if (ffmpegPath.exists()) {
+            this.log("debug", `FFmpeg downloaded successfully.`);
             return ffmpegPath.absoluteFilePath();
         }
 
         // Either the download or extraction failed.
+        this.log("warn", `FFmpeg failed to download.`);
         this.downloadUI.close();
         return "";
     };
@@ -709,7 +835,7 @@ function importMovieFFmpeg(): boolean {
         }
 
         // FFmpeg not found - prompt the user to download FFmpeg.
-        this.ui = this.createUI();
+        this.ui = this.createDownloadPromptUI();
         if (this.ui.exec()) {
             // Download FFmpeg and return path to binary.
             return this.downloadFFmpeg();
@@ -737,6 +863,7 @@ function importMovieFFmpeg(): boolean {
 
         // No valid files
         if (!files.length) {
+            this.log("warn", `No converted images to import.`);
             return false;
         }
         var fileList = files.join(";");
@@ -762,6 +889,7 @@ function importMovieFFmpeg(): boolean {
 
         // No valid audio.
         if (!convertedAudio) {
+            this.log("debug", `No converted audio to import.`);
             return false;
         }
 
@@ -811,6 +939,7 @@ function importMovieFFmpeg(): boolean {
             }
         }
 
+        this.log("warn", `Unable to clear temp directory.`);
         return false;
     };
 
@@ -838,8 +967,9 @@ function importMovieFFmpeg(): boolean {
 
     // Exit if FFmpeg not found and user exits dialog, or an error occured during download.
     if (!FFMPEG_PATH) {
-        MessageLog.trace(
-            "A fatal error has occured when downloading FFmpeg. Exiting."
+        this.log(
+            "error",
+            `A fatal error has occured when downloading FFmpeg. See the MessageLog for more details.`
         );
         return;
     }
@@ -853,6 +983,7 @@ function importMovieFFmpeg(): boolean {
 
     // User cancelled movie input dialog - exit.
     if (!inputMovie) {
+        this.log("warn", `User cancelled input movie dialog.`);
         return;
     }
 
@@ -862,15 +993,21 @@ function importMovieFFmpeg(): boolean {
     var convertMovie = this.convertMovie(FFMPEG_PATH, inputMovie);
     // Conversion failed or user exited prematurely.
     if (!convertMovie) {
+        this.log(
+            "error",
+            "A fatal error has occured when converting media. See the MessageLog for more details."
+        );
         scene.cancelUndoRedoAccum();
         this.cleanTempDir();
         return;
     }
 
     // Import files into Harmony.
-    if (this.importConvertedImages() && this.importConvertedAudio()) {
-        MessageLog.trace("All operations complete.");
-    }
+    this.importConvertedImages();
+    this.importConvertedAudio();
+
+    // Clean up before exit.
     this.cleanTempDir();
     scene.endUndoRedoAccum();
+    this.log("info", `All operations complete.`);
 }
