@@ -750,7 +750,6 @@ function importMovieFFmpeg(): boolean {
 
     /**
      * Import audio converted by FFmpeg.
-     * //TODO: Check for column existing and use anonymous column name instead.
      * @return {boolean} true if successful, false if no valid files or unsuccessful import.
      */
     this.importConvertedAudio = function (): boolean {
@@ -767,7 +766,15 @@ function importMovieFFmpeg(): boolean {
         }
 
         // Create column using the filename and import audio.
-        var col = column.add(new QFileInfo(convertedAudio).baseName(), "SOUND");
+        var columnName: string = new QFileInfo(convertedAudio).baseName();
+        var inc = 1;
+        while (column.getDisplayName(columnName)) {
+            columnName = `${columnName}_${inc}`;
+            inc += 1;
+        }
+
+        column.add(columnName, "SOUND");
+
         var importSound = column.importSound(
             new QFileInfo(convertedAudio).baseName(),
             1,
