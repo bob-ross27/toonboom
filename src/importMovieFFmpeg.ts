@@ -252,7 +252,7 @@ function importMovieFFmpeg(): boolean {
             if (about.isMacArch() || about.isLinuxArch()) {
                 var proc = new QProcess();
                 proc.start("chmod", ["+x", ffmpegPath]);
-                var procStarted = proc.waitForStarted(1000);
+                var procStarted = proc.waitForStarted(1500);
                 // Chmod unsuccessful.
                 if (!procStarted) {
                     this.log(
@@ -289,8 +289,8 @@ function importMovieFFmpeg(): boolean {
 
             var proc = new QProcess();
             proc.start(ffmpegPath, ["-version"]);
-            var procStarted = proc.waitForStarted(1000);
-            var procFinished = proc.waitForStarted(3000);
+            var procStarted = proc.waitForStarted(1500);
+            var procFinished = proc.waitForFinished(3000);
 
             if (procStarted && procFinished) {
                 return true;
@@ -323,7 +323,7 @@ function importMovieFFmpeg(): boolean {
                 "-",
             ];
             proc.start(ffmpegPath, ffmpegArgs);
-            var procStarted: boolean = proc.waitForStarted(1000);
+            var procStarted: boolean = proc.waitForStarted(1500);
             // Process couldn't be started.
             if (!procStarted) {
                 this.log(
@@ -669,7 +669,7 @@ function importMovieFFmpeg(): boolean {
             var proc = new QProcess();
             this.downloadUI.setLabelText("\nDownloading archive...");
             proc.start(CURL_PATH, curlArgs);
-            var procStarted = proc.waitForStarted(1000);
+            var procStarted = proc.waitForStarted(1500);
 
             // Unable to launch curl.
             if (!procStarted) {
@@ -733,7 +733,7 @@ function importMovieFFmpeg(): boolean {
             proc.setWorkingDirectory(SCRIPT_RESOURCE_PATH);
             this.downloadUI.setLabelText("\nExtracting FFmpeg from archive...");
             proc.start(bin, args);
-            var procStarted = proc.waitForStarted(1000);
+            var procStarted = proc.waitForStarted(1500);
 
             // Unable to launch 7z|7za|tar.
             if (!procStarted) {
