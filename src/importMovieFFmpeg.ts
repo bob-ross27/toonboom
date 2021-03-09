@@ -977,7 +977,7 @@ function importMovieFFmpeg(): boolean {
     // Get input movie from user.
     // Default to a sensible filter but allow for all files for weird formats.
     var inputMovie: string = FileDialog.getOpenFileName(
-        "Video Files (*.mov *.mp4 *.avi);;All files (*.*);;",
+        "Video Files (*.mov *.mp4 *.avi *.mxf *.webm);;All files (*.*);;",
         "Select Movie to Import"
     );
 
