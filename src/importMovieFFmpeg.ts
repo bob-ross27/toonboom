@@ -521,6 +521,9 @@ function importMovieFFmpeg(): boolean {
                 QDir.Name
             ).length;
             this.convertUI.setValue(convertedFiles);
+            this.convertUI.setLabelText(
+                `\nConverting video using FFmpeg...\n${convertedFiles}/${fileCount}`
+            );
         });
 
         this.timer.start(50);
