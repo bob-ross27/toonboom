@@ -870,10 +870,16 @@ function importMovieFFmpeg(): boolean {
             return false;
         }
         var fileList = files.join(";");
-
+        var backupFilelist = preferences.getString(
+            "IMPORTIMGDLG_IMAGE_LASTIMPORT",
+            ""
+        );
         // Set the preference to autofill the import dialog, and trigger it.
         preferences.setString("IMPORTIMGDLG_IMAGE_LASTIMPORT", fileList);
         Action.perform("onActionImportDrawings()");
+
+        // Restore preference with previously captured value.
+        preferences.setString("IMPORTIMGDLG_IMAGE_LASTIMPORT", backupFilelist);
 
         return true;
     };
