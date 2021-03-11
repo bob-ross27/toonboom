@@ -7,7 +7,7 @@
  * @version 1.0.0
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function importMovieFFmpeg(): boolean {
+function importMovieFFmpeg() {
     /**
      * Basic logger.
      * @param {string} logLevel - Level to output the log as.
@@ -17,13 +17,13 @@ function importMovieFFmpeg(): boolean {
      *     ERROR: Fatal errors that should trigger an output to the user.
      * @param {string} message - Message to log.
      */
-    this.log = function (inputLogLevel: string, message: string) {
+    this.log = function (inputLogLevel, message) {
         // Exit if no message passed.
         if (!message) {
             return;
         }
 
-        const LOG_LEVELS = ["DEBUG", "INFO", "WARN", "ERROR"];
+        var LOG_LEVELS = ["DEBUG", "INFO", "WARN", "ERROR"];
         var logLevel = inputLogLevel.toUpperCase() || "INFO";
 
         if (LOG_LEVELS.indexOf(logLevel) === -1) {
@@ -32,13 +32,13 @@ function importMovieFFmpeg(): boolean {
 
         // Output log.
         if (logLevel === "DEBUG") {
-            MessageLog.debug(`importMovieFFmpeg::DEBUG: ${message}`);
+            MessageLog.debug("importMovieFFmpeg::DEBUG: " + message);
         } else if (logLevel === "INFO") {
-            MessageLog.trace(`importMovieFFmpeg::INFO: ${message}`);
+            MessageLog.trace("importMovieFFmpeg::INFO: " + message);
         } else if (logLevel === "WARN") {
-            MessageLog.trace(`importMovieFFmpeg::WARNING: ${message}`);
+            MessageLog.trace("importMovieFFmpeg::WARNING: " + message);
         } else {
-            MessageLog.error(`importMovieFFmpeg::ERROR: ${message}`);
+            MessageLog.error("importMovieFFmpeg::ERROR: " + message);
         }
     };
 
@@ -48,11 +48,11 @@ function importMovieFFmpeg(): boolean {
      * @param {boolean} createFolder - Whether to create the folder.
      * @returns {string} Path to the script resource folder.
      */
-    this.getScriptResourcePath = function (createFolder: boolean): string {
+    this.getScriptResourcePath = function (createFolder) {
         var createFolder = createFolder || false;
         var folderName = "importMovieFFmpeg_resources";
-        var resourceFolderName: string = fileMapper.toNativePath(
-            `${specialFolders.userScripts}/${folderName}`
+        var resourceFolderName = fileMapper.toNativePath(
+            specialFolders.userScripts + "/" + folderName
         );
         if (!new QDir(resourceFolderName).exists() && createFolder) {
             var scriptParent = new QDir(specialFolders.userScripts);
@@ -60,7 +60,7 @@ function importMovieFFmpeg(): boolean {
             scriptParent.mkpath(resourceFolderName);
         }
 
-        this.log("debug", `Resource folder: ${resourceFolderName}.`);
+        this.log("debug", "Resource folder: " + resourceFolderName + ".");
         return resourceFolderName;
     };
 
@@ -68,17 +68,17 @@ function importMovieFFmpeg(): boolean {
      * Create and return the path to a temporary directory.
      * @returns {string} Path to the temporary directory.
      */
-    this.getTempDirectory = function (): string {
-        var folderName: string = QUuid.createUuid();
-        var tempFolderName: string = fileMapper.toNativePath(
-            `${specialFolders.temp}/${folderName}`
+    this.getTempDirectory = function () {
+        var folderName = QUuid.createUuid();
+        var tempFolderName = fileMapper.toNativePath(
+            specialFolders.temp + "/" + folderName
         );
         var resourceDir = new QDir(tempFolderName);
         if (!resourceDir.exists()) {
             new QDir(specialFolders.temp).mkdir(folderName);
         }
 
-        this.log("debug", `Temp folder: ${tempFolderName}.`);
+        this.log("debug", "Temp folder: " + tempFolderName + ".");
         return tempFolderName;
     };
 
@@ -89,7 +89,7 @@ function importMovieFFmpeg(): boolean {
      */
     this.getPreferences = function () {
         var defaultPreferences = { videoExt: "tga", audioExt: "wav" };
-        var getPreferences: string = preferences.getString(
+        var getPreferences = preferences.getString(
             "IMPORT_MOVIE_FFMPEG_PREF",
             ""
         );
@@ -97,14 +97,14 @@ function importMovieFFmpeg(): boolean {
         if (!getPreferences) {
             this.log(
                 "debug",
-                `Loaded default preferences: ${JSON.stringify(
-                    defaultPreferences
-                )}.`
+                "Loaded default preferences: " +
+                    JSON.stringify(defaultPreferences) +
+                    "."
             );
             return defaultPreferences;
         }
 
-        this.log("debug", `Loaded user preferences: ${getPreferences}.`);
+        this.log("debug", "Loaded user preferences: " + getPreferences + ".");
         return JSON.parse(getPreferences);
     };
 
@@ -119,7 +119,7 @@ function importMovieFFmpeg(): boolean {
         );
         this.log(
             "debug",
-            `preferences saved: ${JSON.stringify(userPreferences)}.`
+            "preferences saved: " + JSON.stringify(userPreferences) + "."
         );
     };
 
@@ -129,10 +129,10 @@ function importMovieFFmpeg(): boolean {
      * user preferences.
      * @returns {QWidget} UI object.
      */
-    this.createPreferenceDialog = function (): QWidget {
+    this.createPreferenceDialog = function () {
         var prefs = this.getPreferences();
-        var videoExt: string[] = ["jpeg", "png", "tga"];
-        var audioExt: string[] = ["mp3", "wav"];
+        var videoExt = ["jpeg", "png", "tga"];
+        var audioExt = ["mp3", "wav"];
 
         // Preference Dialog
         this.prefUI = new QDialog();
@@ -150,7 +150,7 @@ function importMovieFFmpeg(): boolean {
         // Video options
         this.prefUI.videoLabel = new QLabel("Video Format");
         this.prefUI.videoCB = new QComboBox();
-        videoExt.forEach(function (ext: string) {
+        videoExt.forEach(function (ext) {
             this.prefUI.videoCB.addItem(ext);
         });
         // Set default selection to current prefs.
@@ -163,7 +163,7 @@ function importMovieFFmpeg(): boolean {
         // Audio options
         this.prefUI.audioLabel = new QLabel("Audio Format");
         this.prefUI.audioCB = new QComboBox();
-        audioExt.forEach(function (ext: string) {
+        audioExt.forEach(function (ext) {
             this.prefUI.audioCB.addItem(ext);
         });
         // Set default selection to current prefs.
@@ -192,46 +192,46 @@ function importMovieFFmpeg(): boolean {
      * @param {string[]} paths - Optional array of paths to include in search.
      * @returns {string} Return path if found, "" otherwise.
      */
-    this.getBinPath = function (bin: string, paths: string[]): string {
+    this.getBinPath = function (bin, paths) {
         var paths = paths || [];
 
         var pathSplit = about.isWindowsArch() ? ";" : ":";
-        var envPaths: string[] = System.getenv("PATH").split(pathSplit);
-        var searchPaths: string[] = paths.concat(envPaths);
-        var searchResults: string[] = searchPaths.filter(function (path) {
+        var envPaths = System.getenv("PATH").split(pathSplit);
+        var searchPaths = paths.concat(envPaths);
+        var searchResults = searchPaths.filter(function (path) {
             return new QFile(
-                fileMapper.toNativePath(`${path}/${bin}`)
+                fileMapper.toNativePath(path + "/" + bin)
             ).exists();
         });
 
         // bin detected.
         if (searchResults.length) {
-            var binPath = fileMapper.toNativePath(`${searchResults[0]}/${bin}`);
-            this.log("debug", `Binary ${bin} found at: ${binPath}`);
+            var binPath = fileMapper.toNativePath(searchResults[0] + "/" + bin);
+            this.log("debug", "Binary " + bin + " found at: " + binPath);
             return binPath;
         }
 
-        this.log("debug", `Unable to find path to ${bin}.`);
+        this.log("debug", "Unable to find path to " + bin + ".");
         return "";
     };
 
     /**
      * Global consts.
      */
-    const CURL_BIN: string = about.isWindowsArch() ? "curl.exe" : "curl";
-    const CURL_PATH: string = this.getBinPath(CURL_BIN, [
-        `${specialFolders.bin}/bin_3rdParty/`,
+    var CURL_BIN = about.isWindowsArch() ? "curl.exe" : "curl";
+    var CURL_PATH = this.getBinPath(CURL_BIN, [
+        specialFolders.bin + "/bin_3rdParty/",
     ]);
-    const FFMPEG_BIN: string = about.isWindowsArch() ? "ffmpeg.exe" : "ffmpeg";
-    const SCRIPT_RESOURCE_PATH: string = this.getScriptResourcePath();
-    const TEMP_DIR: string = this.getTempDirectory();
-    const IMAGE_EXT = this.getPreferences().videoExt;
-    const AUDIO_EXT = this.getPreferences().audioExt;
-    const ZIP_BIN = about.isWindowsArch() ? "7z.exe" : "7za";
-    const ZIP_PATH = this.getBinPath(ZIP_BIN, [
-        `${specialFolders.bin}/bin_3rdParty/`,
+    var FFMPEG_BIN = about.isWindowsArch() ? "ffmpeg.exe" : "ffmpeg";
+    var SCRIPT_RESOURCE_PATH = this.getScriptResourcePath();
+    var TEMP_DIR = this.getTempDirectory();
+    var IMAGE_EXT = this.getPreferences().videoExt;
+    var AUDIO_EXT = this.getPreferences().audioExt;
+    var ZIP_BIN = about.isWindowsArch() ? "7z.exe" : "7za";
+    var ZIP_PATH = this.getBinPath(ZIP_BIN, [
+        specialFolders.bin + "/bin_3rdParty/",
     ]);
-    const TAR_PATH = this.getBinPath("tar");
+    var TAR_PATH = this.getBinPath("tar");
 
     /**
      * Convert the input movie using FFmpeg to an image sequence
@@ -240,15 +240,12 @@ function importMovieFFmpeg(): boolean {
      * @param {string} inputMovie - Path to the user provided movie file.
      * @returns {boolean} true if successful, false otherwise.
      */
-    this.convertMovie = function (
-        ffmpegPath: string,
-        inputMovie: string
-    ): boolean {
+    this.convertMovie = function (ffmpegPath, inputMovie) {
         /**
          * Use chmod to set executible bit.
          * @returns {boolean} true if bin is executable, false otherwise.
          */
-        this._setFFmpegExecutable = function (): boolean {
+        this._setFFmpegExecutable = function () {
             // This shouldn't be relevant to Windows.
             if (about.isMacArch() || about.isLinuxArch()) {
                 var proc = new QProcess();
@@ -258,7 +255,7 @@ function importMovieFFmpeg(): boolean {
                 if (!procStarted) {
                     this.log(
                         "warn",
-                        `Unable to launch process to set FFmpeg as executable.`
+                        "Unable to launch process to set FFmpeg as executable."
                     );
                     return false;
                 }
@@ -275,14 +272,14 @@ function importMovieFFmpeg(): boolean {
          * Test FFmpeg to ensure it's set as executable
          * and can execute basic command.
          */
-        this._testFFmpegExecutable = function (): boolean {
+        this._testFFmpegExecutable = function () {
             // Not executable, try using chmod.
             if (!new QFileInfo(ffmpegPath).isExecutable()) {
                 // Try to make executable.
                 if (!this._setFFmpegExecutable()) {
                     this.log(
                         "warn",
-                        `Unable to set FFmpeg binary as executable.`
+                        "Unable to set FFmpeg binary as executable."
                     );
                     return false;
                 }
@@ -296,12 +293,12 @@ function importMovieFFmpeg(): boolean {
             if (procStarted && procFinished) {
                 this.log(
                     "debug",
-                    `FFmpeg binary is executable and launches successfully.`
+                    "FFmpeg binary is executable and launches successfully."
                 );
                 return true;
             }
 
-            this.log("warn", `FFmpeg binary not executable.`);
+            this.log("warn", "FFmpeg binary not executable.");
             return false;
         };
 
@@ -314,10 +311,10 @@ function importMovieFFmpeg(): boolean {
          * @return {object | boolean} Object containing the framecount, and where audio/video streams detected.
          * false otherwise.
          */
-        this._parseVideoAttributes = function (inputMovieFile: QFileInfo) {
-            var ffmpegArgs: string[] = [
+        this._parseVideoAttributes = function (inputMovieFile) {
+            var ffmpegArgs = [
                 "-i",
-                `${inputMovieFile.absoluteFilePath()}`,
+                "" + inputMovieFile.absoluteFilePath(),
                 "-map",
                 "0:v:0",
                 "-c",
@@ -327,12 +324,12 @@ function importMovieFFmpeg(): boolean {
                 "-",
             ];
             this.parseVideoProc.start(ffmpegPath, ffmpegArgs);
-            var procStarted: boolean = this.parseVideoProc.waitForStarted(1500);
+            var procStarted = this.parseVideoProc.waitForStarted(1500);
             // Process couldn't be started.
             if (!procStarted) {
                 this.log(
                     "warn",
-                    `Unable to parse video to determine framecount and available streams.`
+                    "Unable to parse video to determine framecount and available streams."
                 );
                 return false;
             }
@@ -344,7 +341,7 @@ function importMovieFFmpeg(): boolean {
             if (this.convertUI.wasCanceled) {
                 this.parseVideoProc.kill();
                 this.convertUI.close();
-                this.log("debug", `FFmpeg video parsing cancelled by user.`);
+                this.log("debug", "FFmpeg video parsing cancelled by user.");
                 return false;
             }
 
@@ -359,19 +356,19 @@ function importMovieFFmpeg(): boolean {
             var videoRe = new RegExp(/(Stream #\d:\d(?:\(.*\))?: Video)/);
 
             var audioStream = outputStdErr.match(audioRe);
-            this.log("debug", `Audio stream detected: ${!!audioStream}`);
+            this.log("debug", "Audio stream detected: " + !!audioStream);
             var videoStream = outputStdErr.match(videoRe);
-            this.log("debug", `Video stream detected: ${!!videoStream}`);
-            var frames: number;
+            this.log("debug", "Video stream detected: " + !!videoStream);
+            var frames;
             if (outputStdErr.match(framesRe)) {
                 frames = parseInt(outputStdErr.match(framesRe)[1], 10);
             }
-            this.log("debug", `Video framecount detected: ${frames}`);
+            this.log("debug", "Video framecount detected: " + frames);
 
             return {
                 audio: audioStream,
                 video: videoStream,
-                frames,
+                frames: frames,
             };
         };
 
@@ -379,7 +376,7 @@ function importMovieFFmpeg(): boolean {
          * Create the QT Progress dialog.
          * @returns {QProcessDialog} Progress dialog.
          */
-        this._createConvertUI = function (): QProcessDialog {
+        this._createConvertUI = function () {
             this.convertUI = new QProgressDialog(
                 "\nDetermining Movie Framecount...",
                 "Cancel",
@@ -399,17 +396,17 @@ function importMovieFFmpeg(): boolean {
          * @param {QFileInfo} movieFile - Path to the user provided movie.
          * @returns {boolean} true if proc exits normally, false otherwise.
          */
-        this._convertVideo = function (movieFile: QFileInfo): boolean {
-            var movieBasename: string = movieFile.baseName();
+        this._convertVideo = function (movieFile) {
+            var movieBasename = movieFile.baseName();
             var movieOutputName = movieBasename.replace(/-/g, "_");
 
             // Conversion process
-            var ffmpegArgs: string[] = [
+            var ffmpegArgs = [
                 "-y",
                 "-i",
-                `${movieFile.absoluteFilePath()}`,
+                "" + movieFile.absoluteFilePath(),
                 fileMapper.toNativePath(
-                    `${TEMP_DIR}/${movieOutputName}-%04d.${IMAGE_EXT}`
+                    TEMP_DIR + "/" + movieOutputName + "-%04d." + IMAGE_EXT
                 ),
             ];
 
@@ -418,7 +415,7 @@ function importMovieFFmpeg(): boolean {
             // Verify proc started successfully.
             var procStarted = this.convertVideoProc.waitForStarted(1500);
             if (!procStarted) {
-                this.log("warn", `Unable to start FFmpeg to convert video.`);
+                this.log("warn", "Unable to start FFmpeg to convert video.");
                 return false;
             }
 
@@ -430,7 +427,7 @@ function importMovieFFmpeg(): boolean {
                 this.timer.stop();
                 this.convertVideoProc.kill();
                 this.convertUI.close();
-                this.log("debug", `FFmpeg video conversion cancelled by user.`);
+                this.log("debug", "FFmpeg video conversion cancelled by user.");
                 return false;
             }
 
@@ -442,17 +439,17 @@ function importMovieFFmpeg(): boolean {
          * @param {QFileInfo} inputMovieFile - Path to the user provided movie.
          * @returns {boolean} true if proc exits normally, false otherwise.
          */
-        this._convertAudio = function (movieFile): boolean {
-            var movieBasename: string = movieFile.baseName();
+        this._convertAudio = function (movieFile) {
+            var movieBasename = movieFile.baseName();
             var movieOutputName = movieBasename.replace(/-/g, "_");
 
             // Conversion process
-            var ffmpegArgs: string[] = [
+            var ffmpegArgs = [
                 "-y",
                 "-i",
-                `${movieFile.absoluteFilePath()}`,
+                "" + movieFile.absoluteFilePath(),
                 fileMapper.toNativePath(
-                    `${TEMP_DIR}/${movieOutputName}.${AUDIO_EXT}`
+                    TEMP_DIR + "/" + movieOutputName + "." + AUDIO_EXT
                 ),
             ];
 
@@ -461,7 +458,7 @@ function importMovieFFmpeg(): boolean {
             // Verify proc started successfully.
             var procStarted = this.convertAudioProc.waitForStarted(1500);
             if (!procStarted) {
-                this.log("info", `Update to start FFmpeg to convert audio.`);
+                this.log("info", "Update to start FFmpeg to convert audio.");
                 return false;
             }
 
@@ -473,7 +470,7 @@ function importMovieFFmpeg(): boolean {
                 this.timer.stop();
                 this.convertAudioProc.kill();
                 this.convertUI.close();
-                this.log("warn", `FFmpeg audio conversion cancelled by user.`);
+                this.log("warn", "FFmpeg audio conversion cancelled by user.");
                 return false;
             }
 
@@ -547,13 +544,16 @@ function importMovieFFmpeg(): boolean {
         this.timer = new QTimer(this);
         this.timer.timeout.connect(this, function () {
             convertedFiles = tempDir.entryList(
-                [`*.${IMAGE_EXT}`, `*.${AUDIO_EXT}`],
+                ["*." + IMAGE_EXT, "*." + AUDIO_EXT],
                 QDir.Files,
                 QDir.Name
             ).length;
             this.convertUI.setValue(convertedFiles);
             this.convertUI.setLabelText(
-                `\nConverting video using FFmpeg...\n${convertedFiles}/${fileCount}`
+                "\nConverting video using FFmpeg...\n" +
+                    convertedFiles +
+                    "/" +
+                    fileCount
             );
         });
 
@@ -585,7 +585,7 @@ function importMovieFFmpeg(): boolean {
         // Final check to ensure all files are included and we didn't
         // exit the event loop between timers.
         convertedFiles = tempDir.entryList(
-            [`*.${IMAGE_EXT}`, `*.${AUDIO_EXT}`],
+            ["*." + IMAGE_EXT, "*." + AUDIO_EXT],
             QDir.Files,
             QDir.Name
         ).length;
@@ -601,10 +601,10 @@ function importMovieFFmpeg(): boolean {
         // FFmpeg has exited but conversion is not complete.
         if (convertedFiles < fileCount) {
             this.convertUI.close();
-            this.log("error", `FFmpeg exited without converting all frames.`);
+            this.log("error", "FFmpeg exited without converting all frames.");
             return false;
         }
-        this.log("debug", `Input movie converted.`);
+        this.log("debug", "Input movie converted.");
         return true;
     };
 
@@ -612,7 +612,7 @@ function importMovieFFmpeg(): boolean {
      * Create a TB Dialog to prompt user for selection.
      * @returns {Dialog} Dialog object.
      */
-    this.createDownloadPromptUI = function (): Dialog {
+    this.createDownloadPromptUI = function () {
         this.ui = new Dialog();
         this.ui.okButtonText = "Download FFmpeg";
         this.ui.cancelButtonText = "Abort";
@@ -629,7 +629,7 @@ function importMovieFFmpeg(): boolean {
      * Sleep for a duration.
      * @param {int} sleepDuration
      */
-    this.sleepFor = function (sleepDuration: number) {
+    this.sleepFor = function (sleepDuration) {
         var now = new Date().getTime();
         while (new Date().getTime() < now + sleepDuration) {
             /** Do nothing */
@@ -640,12 +640,12 @@ function importMovieFFmpeg(): boolean {
      * Download FFmpeg to the script resource folder.
      * @returns {string} - Path to the downloaded FFmpeg binary.
      */
-    this.downloadFFmpeg = function (): string {
+    this.downloadFFmpeg = function () {
         /**
          * Progress UI for downloading FFmpeg.
          * @returns {QProgressDialog} Created dialog
          */
-        this._createDownloadUI = function (): QProcessDialog {
+        this._createDownloadUI = function () {
             this.downloadUI = new QProgressDialog(
                 "Downloading FFmpeg",
                 "Cancel",
@@ -664,8 +664,8 @@ function importMovieFFmpeg(): boolean {
          * Return the platform-specific download url.
          * @returns {string} Download URL.
          */
-        this._getFFmpegUrl = function (): string {
-            var url: string;
+        this._getFFmpegUrl = function () {
+            var url;
             if (about.isWindowsArch()) {
                 url =
                     "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.7z";
@@ -676,7 +676,7 @@ function importMovieFFmpeg(): boolean {
                     "https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz";
             }
 
-            this.log("debug", `FFmpeg url: ${url}.`);
+            this.log("debug", "FFmpeg url: " + url + ".");
             return url;
         };
 
@@ -685,19 +685,19 @@ function importMovieFFmpeg(): boolean {
          * cancels operations.
          * @param {string} archive - Path to the downloaded archive.
          */
-        this._cleanDownloadedFiles = function (archive: string) {
+        this._cleanDownloadedFiles = function (archive) {
             this.sleepFor(600); // Sleep to remove potential file locks.
             if (new QFile(archive).exists()) {
                 new QFile(archive).remove();
             }
 
             var ffmpegPath = new QFile(
-                fileMapper.toNativePath(`${SCRIPT_RESOURCE_PATH}/${FFMPEG_BIN}`)
+                fileMapper.toNativePath(SCRIPT_RESOURCE_PATH + "/" + FFMPEG_BIN)
             );
             if (ffmpegPath.exists()) {
                 ffmpegPath.remove();
             }
-            this.log("debug", `FFmpeg download cleaned up.`);
+            this.log("debug", "FFmpeg download cleaned up.");
         };
 
         /**
@@ -705,30 +705,30 @@ function importMovieFFmpeg(): boolean {
          * @param {string} archivePath - Path to downloaded archive.
          * @returns {boolean} true if successful, false otherwise.
          */
-        this._extractFFmpeg = function (archivePath: string): boolean {
-            var bin: string;
-            var args: string[];
+        this._extractFFmpeg = function (archivePath) {
+            var bin;
+            var args;
 
             // Linux uses tar, Windows/MacOS use 7z.
             if (about.isLinuxArch()) {
                 bin = TAR_PATH;
                 args = [
-                    "-xf", // Extract file
+                    "-xf",
                     archivePath,
-                    "--wildcards", // Filter only FFmpeg bin
+                    "--wildcards",
                     "--no-anchored",
                     "*ffmpeg",
-                    "--strip-components", // Don't extract into folder
+                    "--strip-components",
                     "1",
                 ];
             } else {
                 bin = ZIP_PATH;
                 args = [
-                    "e", // Extract
+                    "e",
                     archivePath,
-                    `-o${SCRIPT_RESOURCE_PATH}`, // Output dir
-                    FFMPEG_BIN, // Filter only FFmpeg bin
-                    "-r", // Search recursively
+                    "-o" + SCRIPT_RESOURCE_PATH,
+                    FFMPEG_BIN,
+                    "-r",
                 ];
             }
 
@@ -741,9 +741,9 @@ function importMovieFFmpeg(): boolean {
             if (!procStarted) {
                 this.log(
                     "warn",
-                    `Unable to start ${
-                        about.isLinuxArch ? "tar" : "7z"
-                    }. to extract FFmpeg.`
+                    "Unable to start " +
+                        (about.isLinuxArch ? "tar" : "7z") +
+                        ". to extract FFmpeg."
                 );
                 return false;
             }
@@ -758,13 +758,13 @@ function importMovieFFmpeg(): boolean {
                 this._cleanDownloadedFiles(archivePath);
                 this.log(
                     "debug",
-                    `FFmpeg archive extraction cancelled by user.`
+                    "FFmpeg archive extraction cancelled by user."
                 );
                 return false;
             }
             this.downloadUI.close();
             new QFile(archivePath).remove(); // Remove temp downloaded file.
-            this.log("debug", `FFmpeg extracted successfully.`);
+            this.log("debug", "FFmpeg extracted successfully.");
             return true;
         };
 
@@ -774,24 +774,15 @@ function importMovieFFmpeg(): boolean {
          * @param {string} archivePath - Path to download the archive to.
          * @returns {boolean} true if proc exits normally, false otherwise.
          */
-        this._downloadArchive = function (
-            url: string,
-            archivePath: string
-        ): boolean {
-            var curlArgs: string[] = [
-                url,
-                "-k", // insecure - don't verify ssl cert
-                "-L", // Follow redirects
-                "--output", // Output to a file instead of stdout
-                archivePath,
-            ];
+        this._downloadArchive = function (url, archivePath) {
+            var curlArgs = [url, "-k", "-L", "--output", archivePath];
             this.downloadUI.setLabelText("\nDownloading archive...");
             this.downloadProc.start(CURL_PATH, curlArgs);
             var procStarted = this.downloadProc.waitForStarted(1500);
 
             // Unable to launch curl.
             if (!procStarted) {
-                this.log("warn", `Unable to start curl to download FFmpeg.`);
+                this.log("warn", "Unable to start curl to download FFmpeg.");
                 return false;
             }
 
@@ -803,7 +794,7 @@ function importMovieFFmpeg(): boolean {
                 this.downloadProc.kill();
                 this.downloadUI.close();
                 this._cleanDownloadedFiles(archivePath);
-                this.log("debug", `FFmpeg archive download cancelled by user.`);
+                this.log("debug", "FFmpeg archive download cancelled by user.");
                 return false;
             }
 
@@ -811,10 +802,10 @@ function importMovieFFmpeg(): boolean {
                 new QFile(archivePath).exists() &&
                 this.downloadProc.exitStatus()
             ) {
-                this.log("debug", `FFmpeg archive downloaded successfully.`);
+                this.log("debug", "FFmpeg archive downloaded successfully.");
                 return true;
             }
-            this.log("debug", `FFmpeg archive download failed.`);
+            this.log("debug", "FFmpeg archive download failed.");
             return false;
         };
 
@@ -825,7 +816,7 @@ function importMovieFFmpeg(): boolean {
         if (!new QFile(CURL_PATH).exists()) {
             this.log(
                 "error",
-                `curl does not exist or could not be found. Please ensure curl is in the PATH.`
+                "curl does not exist or could not be found. Please ensure curl is in the PATH."
             );
             return "";
         }
@@ -855,12 +846,12 @@ function importMovieFFmpeg(): boolean {
             this.loop.exit();
         });
 
-        var ffmpegUrl: string = this._getFFmpegUrl();
+        var ffmpegUrl = this._getFFmpegUrl();
         var ffmpegDownloadExt = about.isLinuxArch() ? "xz" : "7z";
-        var ffmpegDownloadPath: string = fileMapper.toNativePath(
-            `${this.getScriptResourcePath(
-                true
-            )}/ffmpeg_download.${ffmpegDownloadExt}`
+        var ffmpegDownloadPath = fileMapper.toNativePath(
+            this.getScriptResourcePath(true) +
+                "/ffmpeg_download." +
+                ffmpegDownloadExt
         ); // Create resource path if not already present.
 
         this.downloadUI.show();
@@ -876,15 +867,15 @@ function importMovieFFmpeg(): boolean {
 
         // Verify operations were successful and FFmpeg now exists in the expected location.
         var ffmpegPath = new QFileInfo(
-            fileMapper.toNativePath(`${SCRIPT_RESOURCE_PATH}/${FFMPEG_BIN}`)
+            fileMapper.toNativePath(SCRIPT_RESOURCE_PATH + "/" + FFMPEG_BIN)
         );
         if (ffmpegPath.exists()) {
-            this.log("info", `FFmpeg download complete.`);
+            this.log("info", "FFmpeg download complete.");
             return ffmpegPath.absoluteFilePath();
         }
 
         // Either the download or extraction failed.
-        this.log("warn", `FFmpeg failed to download.`);
+        this.log("warn", "FFmpeg failed to download.");
         this.downloadUI.close();
         return "";
     };
@@ -894,7 +885,7 @@ function importMovieFFmpeg(): boolean {
      * Return path if detected, false if not found.
      * @return {string} Path of the detected or downloaded FFmpeg binary.
      */
-    this.getFFmpegPath = function (): string {
+    this.getFFmpegPath = function () {
         var ffmpegPath = this.getBinPath(FFMPEG_BIN, [SCRIPT_RESOURCE_PATH]);
         if (ffmpegPath) {
             return ffmpegPath;
@@ -904,7 +895,7 @@ function importMovieFFmpeg(): boolean {
         this.ui = this.createDownloadPromptUI();
         if (this.ui.exec()) {
             // Download FFmpeg and return path to binary.
-            this.log("debug", `User accepted FFmpeg download prompt.`);
+            this.log("debug", "User accepted FFmpeg download prompt.");
             return this.downloadFFmpeg();
         }
 
@@ -917,20 +908,20 @@ function importMovieFFmpeg(): boolean {
      * to import with specific options, vectorize etc.
      * @return {boolean} true if successful, false if no valid files.
      */
-    this.importConvertedImages = function (): boolean {
+    this.importConvertedImages = function () {
         var tempPath = new QDir(TEMP_DIR);
-        var files: string[] = tempPath.entryList(
-            [`*.${IMAGE_EXT}`],
+        var files = tempPath.entryList(
+            ["*." + IMAGE_EXT],
             QDir.Files,
             QDir.Name
         );
-        files = files.map(function (x: string) {
-            return fileMapper.toNativePath(`${tempPath.absolutePath()}/${x}`);
+        files = files.map(function (x) {
+            return fileMapper.toNativePath(tempPath.absolutePath() + "/" + x);
         });
 
         // No valid files
         if (!files.length) {
-            this.log("warn", `No converted images to import.`);
+            this.log("warn", "No converted images to import.");
             return false;
         }
         var fileList = files.join(";");
@@ -952,25 +943,25 @@ function importMovieFFmpeg(): boolean {
      * Import audio converted by FFmpeg.
      * @return {boolean} true if successful, false if no valid files or unsuccessful import.
      */
-    this.importConvertedAudio = function (): boolean {
+    this.importConvertedAudio = function () {
         var tempPath = new QDir(TEMP_DIR);
-        var convertedAudio: string = tempPath.entryList(
-            [`*.${AUDIO_EXT}`],
+        var convertedAudio = tempPath.entryList(
+            ["*." + AUDIO_EXT],
             QDir.Files,
             QDir.Name
         )[0];
 
         // No valid audio.
         if (!convertedAudio) {
-            this.log("debug", `No converted audio to import.`);
+            this.log("debug", "No converted audio to import.");
             return false;
         }
 
         // Create column using the filename and import audio.
-        var columnName: string = new QFileInfo(convertedAudio).baseName();
+        var columnName = new QFileInfo(convertedAudio).baseName();
         var inc = 1;
         while (column.getDisplayName(columnName)) {
-            columnName = `${columnName}_${inc}`;
+            columnName = columnName + "_" + inc;
             inc += 1;
         }
 
@@ -980,7 +971,7 @@ function importMovieFFmpeg(): boolean {
             new QFileInfo(convertedAudio).baseName(),
             1,
             fileMapper.toNativePath(
-                `${tempPath.absolutePath()}/${convertedAudio}`
+                tempPath.absolutePath() + "/" + convertedAudio
             )
         );
 
@@ -996,12 +987,12 @@ function importMovieFFmpeg(): boolean {
      * Harmony doesn't support QDir.removeRecursively, so it has to be done manually.
      * @returns {boolean} true if successful, false otherwise.
      */
-    this.cleanTempDir = function (): boolean {
+    this.cleanTempDir = function () {
         var tempDir = new QDir(TEMP_DIR);
         var fileArray = tempDir.entryList(["*.*"], QDir.Files, QDir.Name);
-        var removed = fileArray.filter(function (f: string) {
+        var removed = fileArray.filter(function (f) {
             return new QFile(
-                fileMapper.toNativePath(`${TEMP_DIR}/${f}`)
+                fileMapper.toNativePath(TEMP_DIR + "/" + f)
             ).remove();
         });
 
@@ -1012,7 +1003,7 @@ function importMovieFFmpeg(): boolean {
             }
         }
 
-        this.log("warn", `Unable to clear temp directory.`);
+        this.log("warn", "Unable to clear temp directory.");
         return false;
     };
 
@@ -1036,19 +1027,19 @@ function importMovieFFmpeg(): boolean {
     }
 
     // Get path to FFmpeg - or prompt user to download if not present.
-    const FFMPEG_PATH: string = this.getFFmpegPath();
+    var FFMPEG_PATH = this.getFFmpegPath();
 
     // Exit if FFmpeg not found and user exits dialog, or an error occured during download.
     if (!FFMPEG_PATH) {
         this.log(
             "error",
-            `A fatal error has occured when downloading FFmpeg. See the MessageLog for more details.`
+            "A fatal error has occured when downloading FFmpeg. See the MessageLog for more details."
         );
         return;
     }
 
     // Get input movie from user.
-    var inputMovie: string = QFileDialog.getOpenFileName(
+    var inputMovie = QFileDialog.getOpenFileName(
         this,
         "Select Video",
         about.isWindowsArch()
@@ -1059,7 +1050,7 @@ function importMovieFFmpeg(): boolean {
 
     // User cancelled movie input dialog - exit.
     if (!inputMovie) {
-        this.log("warn", `User cancelled input movie dialog.`);
+        this.log("warn", "User cancelled input movie dialog.");
         return;
     }
 
@@ -1071,7 +1062,7 @@ function importMovieFFmpeg(): boolean {
     if (!convertMovie) {
         this.log(
             "error",
-            `A fatal error has occured when converting media. See the MessageLog for more details.`
+            "A fatal error has occured when converting media. See the MessageLog for more details."
         );
         scene.cancelUndoRedoAccum();
         this.cleanTempDir();
@@ -1085,5 +1076,5 @@ function importMovieFFmpeg(): boolean {
     // Clean up before exit.
     this.cleanTempDir();
     scene.endUndoRedoAccum();
-    this.log("info", `All operations complete.`);
+    this.log("info", "All operations complete.");
 }
