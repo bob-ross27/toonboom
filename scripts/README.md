@@ -1,5 +1,29 @@
 # Script Information
 
+## importMovieFFmpeg.js
+
+<!-- <img src="script-icons/importMovieFFmpeg.png" width="35" height="35"> -->
+
+[**Click Here to Download**](https://github.com/bob-ross27/toonboom/raw/main/dist/importMovieFFmpeg.zip)
+
+**Version** 1.0.0
+
+**Description**  
+ Import a movie into Harmony, roughly mimicking the built-in "Import Movie" feature with the notable difference of utilizing FFmpeg to handle media conversion. This allows for more file formats to be supported compared to the native implementation.
+
+Additionally, the resulting image sequence/audio formats can be customized through the preference panel.
+
+**Instructions**  
+ Click the icon to run the script. If FFmpeg is not detected on your computer, you can choose to download FFmpeg automatically.
+
+Select a video to import in the dialog that appears. By default, the file filters to common video file formats. The filter "All Files" can be selected in the Movie Import dialog to convert less common file formats (such as mkv) that FFmpeg is capable of converting. Note that unexpected errors may occur with unsupported file formats.
+
+Once conversion has completed, the standard Harmony "Import Images" dialog will appear with the images pre-filled for import. Simply configure the appropriate import options (such as the node name, alignment, vectorization etc.) and select "OK" to import as usual.
+
+A preference dialog can optionally be launched by holding the "Shift" key when launching the script in order to customize the output file formats. For example JPEG or PNG can be used to reduce image filesize when compared to the default TGA.
+
+---
+
 ## mergeDuplicateTimings.js
 
 <!-- <img src="script-icons/mergeDuplicateTimings.png" width="35" height="35"> -->
