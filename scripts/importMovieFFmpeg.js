@@ -4,7 +4,7 @@
  * Mimic the built-in movie import function using FFmpeg to support a broader
  * range of formats and codecs.
  * Software: Harmony 17 Premium.
- * @version 1.0.0
+ * @version 1.1.0
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function importMovieFFmpeg() {
@@ -647,10 +647,10 @@ function importMovieFFmpeg() {
          */
         this._createDownloadUI = function () {
             this.downloadUI = new QProgressDialog(
-                "Downloading FFmpeg",
+                "\nDetermining archive size...",
                 "Cancel",
                 0,
-                0,
+                1,
                 this,
                 Qt.FramelessWindowHint
             );
@@ -732,10 +732,12 @@ function importMovieFFmpeg() {
                 ];
             }
 
-            this.extractProc.setWorkingDirectory(SCRIPT_RESOURCE_PATH);
+            this.downloadUI.maximum = 0;
+            this.downloadUI.setValue(0);
+            this.downloadProc.setWorkingDirectory(SCRIPT_RESOURCE_PATH);
             this.downloadUI.setLabelText("\nExtracting FFmpeg from archive...");
-            this.extractProc.start(bin, args);
-            var procStarted = this.extractProc.waitForStarted(1500);
+            this.downloadProc.start(bin, args);
+            var procStarted = this.downloadProc.waitForStarted(1500);
 
             // Unable to launch 7z|7za|tar.
             if (!procStarted) {
@@ -753,7 +755,7 @@ function importMovieFFmpeg() {
 
             // Check if user cancelled dialog.
             if (this.downloadUI.wasCanceled) {
-                this.extractProc.kill();
+                this.downloadProc.kill();
                 this.downloadUI.close();
                 this._cleanDownloadedFiles(archivePath);
                 this.log(
@@ -769,13 +771,39 @@ function importMovieFFmpeg() {
         };
 
         /**
-         * Use curl to download ffmpeg.
-         * @param {string} url - URL to download ffmpeg from.
+         * @param {string} url - URL to download FFmpeg from.
+         * @returns {int} File size in bytes.
+         */
+        this._getArchiveSize = function (url) {
+            var contentSizeRe = new RegExp(/Content-Length: (\d+)/);
+
+            this.downloadProc.start("curl.exe", ["-k", "-L", "-I", url]);
+
+            // Enter event loop.
+            this.loop.exec();
+
+            // Parse returned values for file size.
+            var curlHeaders = new QTextStream(
+                this.downloadProc.readAllStandardOutput()
+            ).readAll();
+            var downloadSize = parseInt(
+                curlHeaders.match(contentSizeRe)[1],
+                10
+            );
+
+            this.log("debug", "FFmpeg archive download size: " + downloadSize);
+            return downloadSize;
+        };
+
+        /**
+         * Use curl to download FFmpeg.
+         * @param {string} url - URL to download FFmpeg from.
          * @param {string} archivePath - Path to download the archive to.
          * @returns {boolean} true if proc exits normally, false otherwise.
          */
         this._downloadArchive = function (url, archivePath) {
             var curlArgs = [url, "-k", "-L", "--output", archivePath];
+
             this.downloadUI.setLabelText("\nDownloading archive...");
             this.downloadProc.start(CURL_PATH, curlArgs);
             var procStarted = this.downloadProc.waitForStarted(1500);
@@ -786,17 +814,23 @@ function importMovieFFmpeg() {
                 return false;
             }
 
+            // Start timer to update dialog with current filesize.
+            this.timer.start(20);
+
             // Enter event loop.
             this.loop.exec();
 
             // Check if user cancelled dialog.
             if (this.downloadUI.wasCanceled) {
+                this.timer.stop();
                 this.downloadProc.kill();
                 this.downloadUI.close();
                 this._cleanDownloadedFiles(archivePath);
                 this.log("debug", "FFmpeg archive download cancelled by user.");
                 return false;
             }
+
+            this.timer.stop();
 
             if (
                 new QFile(archivePath).exists() &&
@@ -821,18 +855,11 @@ function importMovieFFmpeg() {
             return "";
         }
 
+        this.timer = new QTimer();
         this.loop = new QEventLoop();
         this.downloadProc = new QProcess();
-        this.extractProc = new QProcess();
 
         this.downloadProc["finished(int,QProcess::ExitStatus)"].connect(
-            this,
-            function () {
-                this.loop.exit();
-            }
-        );
-
-        this.extractProc["finished(int,QProcess::ExitStatus)"].connect(
             this,
             function () {
                 this.loop.exit();
@@ -854,7 +881,22 @@ function importMovieFFmpeg() {
                 ffmpegDownloadExt
         ); // Create resource path if not already present.
 
+        this.timer.timeout.connect(this, function () {
+            var downloadedFile = new QFile(ffmpegDownloadPath);
+            if (downloadedFile.exists()) {
+                this.downloadUI.setValue(downloadedFile.size());
+            }
+        });
+
         this.downloadUI.show();
+
+        // Get download size for use in the progressbar.
+        var downloadSize = this._getArchiveSize(ffmpegUrl);
+        if (!downloadSize) {
+            return "";
+        }
+
+        this.downloadUI.maximum = downloadSize + 1; // +1 to avoid closing dialog between stages.
 
         // Download ffmpeg.
         if (!this._downloadArchive(ffmpegUrl, ffmpegDownloadPath)) {
