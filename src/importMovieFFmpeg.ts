@@ -4,7 +4,7 @@
  * Mimic the built-in movie import function using FFmpeg to support a broader
  * range of formats and codecs.
  * Software: Harmony 17 Premium.
- * @version 1.1.0
+ * @version 1.2.0
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function importMovieFFmpeg(): boolean {
@@ -88,7 +88,13 @@ function importMovieFFmpeg(): boolean {
      * @returns {Object} Object containing preference values.
      */
     this.getPreferences = function () {
-        var defaultPreferences = { videoExt: "tga", audioExt: "wav" };
+        var defaultPreferences = {
+            videoExt: "tga",
+            audioExt: "wav",
+            lastImportPath: about.isWindowsArch()
+                ? System.getenv("HOMEPATH")
+                : System.getenv("HOME"),
+        };
         var getPreferences: string = preferences.getString(
             "IMPORT_MOVIE_FFMPEG_PREF",
             ""
@@ -218,20 +224,26 @@ function importMovieFFmpeg(): boolean {
     /**
      * Global consts.
      */
+    // Global paths
+    const SCRIPT_RESOURCE_PATH: string = this.getScriptResourcePath();
+    const TEMP_DIR: string = this.getTempDirectory();
+
+    // Binaries
     const CURL_BIN: string = about.isWindowsArch() ? "curl.exe" : "curl";
     const CURL_PATH: string = this.getBinPath(CURL_BIN, [
         `${specialFolders.bin}/bin_3rdParty/`,
     ]);
     const FFMPEG_BIN: string = about.isWindowsArch() ? "ffmpeg.exe" : "ffmpeg";
-    const SCRIPT_RESOURCE_PATH: string = this.getScriptResourcePath();
-    const TEMP_DIR: string = this.getTempDirectory();
-    const IMAGE_EXT = this.getPreferences().videoExt;
-    const AUDIO_EXT = this.getPreferences().audioExt;
     const ZIP_BIN = about.isWindowsArch() ? "7z.exe" : "7za";
     const ZIP_PATH = this.getBinPath(ZIP_BIN, [
         `${specialFolders.bin}/bin_3rdParty/`,
     ]);
     const TAR_PATH = this.getBinPath("tar");
+
+    var userPrefs = this.getPreferences();
+    const LAST_IMPORT_PATH = userPrefs.lastImportPath;
+    const IMAGE_EXT = userPrefs.videoExt;
+    const AUDIO_EXT = userPrefs.audioExt;
 
     /**
      * Convert the input movie using FFmpeg to an image sequence
@@ -1070,6 +1082,7 @@ function importMovieFFmpeg(): boolean {
             this.setPreferences({
                 videoExt: this.prefUI.videoCB.currentText,
                 audioExt: this.prefUI.audioCB.currentText,
+                lastImportPath: LAST_IMPORT_PATH,
             });
             this.prefUI.close();
         });
@@ -1093,9 +1106,7 @@ function importMovieFFmpeg(): boolean {
     var inputMovie: string = QFileDialog.getOpenFileName(
         this,
         "Select Video",
-        about.isWindowsArch()
-            ? System.getenv("HOMEPATH")
-            : System.getenv("HOME"),
+        LAST_IMPORT_PATH,
         "Video Files (*.mov *.mp4 *.avi *.mxf *.webm);;All files (*.*);;"
     );
 
@@ -1104,6 +1115,13 @@ function importMovieFFmpeg(): boolean {
         this.log("warn", `User cancelled input movie dialog.`);
         return;
     }
+
+    // Save last import path to preferences.
+    this.setPreferences({
+        videoExt: IMAGE_EXT,
+        audioExt: AUDIO_EXT,
+        lastImportPath: new QFileInfo(inputMovie).path(),
+    });
 
     scene.beginUndoRedoAccum("importMovieFFmpeg");
 

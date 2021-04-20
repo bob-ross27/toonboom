@@ -4,7 +4,7 @@
  * Mimic the built-in movie import function using FFmpeg to support a broader
  * range of formats and codecs.
  * Software: Harmony 17 Premium.
- * @version 1.1.0
+ * @version 1.2.0
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function importMovieFFmpeg() {
@@ -88,7 +88,13 @@ function importMovieFFmpeg() {
      * @returns {Object} Object containing preference values.
      */
     this.getPreferences = function () {
-        var defaultPreferences = { videoExt: "tga", audioExt: "wav" };
+        var defaultPreferences = {
+            videoExt: "tga",
+            audioExt: "wav",
+            lastImportPath: about.isWindowsArch()
+                ? System.getenv("HOMEPATH")
+                : System.getenv("HOME"),
+        };
         var getPreferences = preferences.getString(
             "IMPORT_MOVIE_FFMPEG_PREF",
             ""
@@ -218,20 +224,26 @@ function importMovieFFmpeg() {
     /**
      * Global consts.
      */
+    // Global paths
+    var SCRIPT_RESOURCE_PATH = this.getScriptResourcePath();
+    var TEMP_DIR = this.getTempDirectory();
+
+    // Binaries
     var CURL_BIN = about.isWindowsArch() ? "curl.exe" : "curl";
     var CURL_PATH = this.getBinPath(CURL_BIN, [
         specialFolders.bin + "/bin_3rdParty/",
     ]);
     var FFMPEG_BIN = about.isWindowsArch() ? "ffmpeg.exe" : "ffmpeg";
-    var SCRIPT_RESOURCE_PATH = this.getScriptResourcePath();
-    var TEMP_DIR = this.getTempDirectory();
-    var IMAGE_EXT = this.getPreferences().videoExt;
-    var AUDIO_EXT = this.getPreferences().audioExt;
     var ZIP_BIN = about.isWindowsArch() ? "7z.exe" : "7za";
     var ZIP_PATH = this.getBinPath(ZIP_BIN, [
         specialFolders.bin + "/bin_3rdParty/",
     ]);
     var TAR_PATH = this.getBinPath("tar");
+
+    var userPrefs = this.getPreferences();
+    var LAST_IMPORT_PATH = userPrefs.lastImportPath;
+    var IMAGE_EXT = userPrefs.videoExt;
+    var AUDIO_EXT = userPrefs.audioExt;
 
     /**
      * Convert the input movie using FFmpeg to an image sequence
@@ -1061,6 +1073,7 @@ function importMovieFFmpeg() {
             this.setPreferences({
                 videoExt: this.prefUI.videoCB.currentText,
                 audioExt: this.prefUI.audioCB.currentText,
+                lastImportPath: LAST_IMPORT_PATH,
             });
             this.prefUI.close();
         });
@@ -1084,9 +1097,7 @@ function importMovieFFmpeg() {
     var inputMovie = QFileDialog.getOpenFileName(
         this,
         "Select Video",
-        about.isWindowsArch()
-            ? System.getenv("HOMEPATH")
-            : System.getenv("HOME"),
+        LAST_IMPORT_PATH,
         "Video Files (*.mov *.mp4 *.avi *.mxf *.webm);;All files (*.*);;"
     );
 
@@ -1095,6 +1106,13 @@ function importMovieFFmpeg() {
         this.log("warn", "User cancelled input movie dialog.");
         return;
     }
+
+    // Save last import path to preferences.
+    this.setPreferences({
+        videoExt: IMAGE_EXT,
+        audioExt: AUDIO_EXT,
+        lastImportPath: new QFileInfo(inputMovie).path(),
+    });
 
     scene.beginUndoRedoAccum("importMovieFFmpeg");
 
