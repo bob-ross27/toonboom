@@ -1,0 +1,53 @@
+{
+    "name": "Bob-Ross",
+    "website": "https://github.com/bob-ross27/toonboom/",
+    "social": "",
+    "repository": "https://github.com/bob-ross27/toonboom/",
+    "extensions": [
+        {
+            "name": "importMovieFFmpeg",
+            "version": "1.2.0",
+            "compatibility": "Harmony Premium 17",
+            "description": "<p>Import a movie into Harmony, roughly mimicking the built-in 'Import Movie' feature with the notable difference of utilizing FFmpeg to handle media conversion. This allows for more considerably larger file format support, such as common production formats (e.g. ProRes, DNxHD).</p><p> If FFmpeg is not detected on your computer, you can choose to download FFmpeg automatically.</P",
+            "repository": "https://github.com/bob-ross27/toonboom/",
+            "isPackage": false,
+            "files": [
+                "scripts/importMovieFFmpeg.js",
+                "scripts/script-icons/importMovieFFmpeg.png"
+            ],
+            "keywords": ["FFMpeg", "import"],
+            "author": "Bob-Ross27",
+            "license": "MPL-2.0",
+            "website": "https://github.com/bob-ross27/toonboom/",
+            "localFiles": ""
+        },
+        {
+            "name": "mergeDuplicateTimings",
+            "version": "1.2.0",
+            "compatibility": "Harmony Premium 17",
+            "description": "<p>Set all duplicate drawing keys to the first detected unique version. This requires each duplicate image to be identical, such as computer generated images.</p><p>This can be useful for removing duplicate held frames from a rendered image sequence in preparation for coloring.</p>",
+            "repository": "https://github.com/bob-ross27/toonboom/",
+            "isPackage": false,
+            "files": ["scripts/mergeDuplicateTimings.js"],
+            "keywords": ["merge"],
+            "author": "Bob-Ross27",
+            "license": "MPL-2.0",
+            "website": "https://github.com/bob-ross27/toonboom/",
+            "localFiles": ""
+        },
+        {
+            "name": "renameDrawingsByFrame",
+            "version": "1.0.1",
+            "compatibility": "Harmony Premium 17",
+            "description": "<p>Rename keys (drawings) to their first exposed frame. This roughly emulates the included rename to frame function, but does it across selected nodes instead of on selected frames in a column.</p><p>Additionally the script works in Essentials, which lacks the included function.</p>",
+            "repository": "https://github.com/bob-ross27/toonboom/",
+            "isPackage": false,
+            "files": ["scripts/renameDrawingsByFrame.js"],
+            "keywords": ["rename", "drawings"],
+            "author": "Bob-Ross27",
+            "license": "MPL-2.0",
+            "website": "https://github.com/bob-ross27/toonboom/",
+            "localFiles": ""
+        }
+    ]
+}

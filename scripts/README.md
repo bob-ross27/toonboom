@@ -1,8 +1,13 @@
 # Script Information
 
+## Installation
+
+The recommend approach for script installation is through <a href='https://github.com/mchaptel/ExtensionStore/'>HUES</a> - an app to help install and manage Harmony scripts.
+Using this tool you can install scripts, automatically be notified of script updates and easily update to the newest versions.
+
 ## importMovieFFmpeg.js
 
-<!-- <img src="script-icons/importMovieFFmpeg.png" width="35" height="35"> -->
+<img src="script-icons/importMovieFFmpeg.png" width="35" height="35">
 
 [**Click Here to Download**](https://github.com/bob-ross27/toonboom/raw/main/dist/importMovieFFmpeg.zip)
 
@@ -49,7 +54,7 @@ A preference dialog can optionally be launched by holding the "Shift" key when l
 **Version** 1.0.1
 
 **Description**  
-Rename draiwngs to their first exposed frame. This roughly emulates the included rename to frame function, but does it across selected nodes instead of on selected frames in a column.  
+Rename drawings to their first exposed frame. This roughly emulates the included rename to frame function, but does it across selected nodes instead of on selected frames in a column.  
 Additionally the script works in Essentials, which lacks the included function.
 
 **Instructions**  
