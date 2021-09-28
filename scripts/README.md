@@ -11,7 +11,7 @@ Using this tool you can install scripts, automatically be notified of script upd
 
 [**Click Here to Download**](https://github.com/bob-ross27/toonboom/raw/main/dist/importMovieFFmpeg.zip)
 
-**Version** 1.2.0
+**Version** 1.2.1
 
 **Description**  
  Import a movie into Harmony, roughly mimicking the built-in "Import Movie" feature with the notable difference of utilizing FFmpeg to handle media conversion. This allows for more file formats to be supported compared to the native implementation.

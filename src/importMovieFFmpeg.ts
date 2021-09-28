@@ -4,7 +4,7 @@
  * Mimic the built-in movie import function using FFmpeg to support a broader
  * range of formats and codecs.
  * Software: Harmony 17 Premium.
- * @version 1.2.0
+ * @version 1.2.1
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function importMovieFFmpeg(): boolean {
@@ -196,9 +196,9 @@ function importMovieFFmpeg(): boolean {
      * Search system PATH env var, as well as any (optionally) provided paths for the specific binary.
      * @param {string} bin - Name of the binary to find.
      * @param {string[]} paths - Optional array of paths to include in search.
-     * @returns {string} Return path if found, "" otherwise.
+     * @returns {string} Return path if found, false otherwise.
      */
-    this.getBinPath = function (bin: string, paths: string[]): string {
+    this.getBinPath = function (bin: string, paths: string[]): string | false {
         var paths = paths || [];
 
         var pathSplit = about.isWindowsArch() ? ";" : ":";
@@ -218,7 +218,7 @@ function importMovieFFmpeg(): boolean {
         }
 
         this.log("debug", `Unable to find path to ${bin}.`);
-        return "";
+        return false;
     };
 
     /**
@@ -639,7 +639,7 @@ function importMovieFFmpeg(): boolean {
 
     /**
      * Sleep for a duration.
-     * @param {int} sleepDuration
+     * @param {number} sleepDuration
      */
     this.sleepFor = function (sleepDuration: number) {
         var now = new Date().getTime();
@@ -650,9 +650,9 @@ function importMovieFFmpeg(): boolean {
 
     /**
      * Download FFmpeg to the script resource folder.
-     * @returns {string} - Path to the downloaded FFmpeg binary.
+     * @returns {string} - Path to the downloaded FFmpeg binary, false if unable to download successfully.
      */
-    this.downloadFFmpeg = function (): string {
+    this.downloadFFmpeg = function (): string | false {
         /**
          * Progress UI for downloading FFmpeg.
          * @returns {QProgressDialog} Created dialog
@@ -668,6 +668,7 @@ function importMovieFFmpeg(): boolean {
             );
             this.downloadUI.modal = true;
             this.downloadUI.value = 0;
+            this.downloadUI.maximum = 0;
             this.downloadUI.minimumDuration = 0;
             return this.downloadUI;
         };
@@ -784,12 +785,13 @@ function importMovieFFmpeg(): boolean {
 
         /**
          * @param {string} url - URL to download FFmpeg from.
-         * @returns {int} File size in bytes.
+         * @returns {number} File size in bytes or false if no archive is found.
          */
-        this._getArchiveSize = function (url: string): number {
+        this._getArchiveSize = function (url: string): number | false {
+            var fileFoundRe = new RegExp(/200 OK/);
             var contentSizeRe = new RegExp(/Content-Length: (\d+)/);
 
-            this.downloadProc.start("curl.exe", ["-k", "-L", "-I", url]);
+            this.downloadProc.start(CURL_PATH, ["-k", "-L", "-I", url]);
 
             // Enter event loop.
             this.loop.exec();
@@ -798,13 +800,28 @@ function importMovieFFmpeg(): boolean {
             var curlHeaders: string = new QTextStream(
                 this.downloadProc.readAllStandardOutput()
             ).readAll();
-            var downloadSize: number = parseInt(
-                curlHeaders.match(contentSizeRe)[1],
-                10
+
+            if (
+                curlHeaders.match(fileFoundRe) &&
+                curlHeaders.match(contentSizeRe)
+            ) {
+                var downloadSize: number = parseInt(
+                    curlHeaders.match(contentSizeRe)[1],
+                    10
+                );
+                this.log(
+                    "debug",
+                    `FFmpeg archive download size: ${downloadSize}`
+                );
+                return downloadSize;
+            }
+
+            this.log(
+                "error",
+                `Unable to find FFmpeg at the expected URL ${url}`
             );
 
-            this.log("debug", `FFmpeg archive download size: ${downloadSize}`);
-            return downloadSize;
+            return false;
         };
 
         /**
@@ -873,7 +890,7 @@ function importMovieFFmpeg(): boolean {
                 "error",
                 `curl does not exist or could not be found. Please ensure curl is in the PATH.`
             );
-            return "";
+            return false;
         }
 
         this.timer = new QTimer();
@@ -914,18 +931,18 @@ function importMovieFFmpeg(): boolean {
         // Get download size for use in the progressbar.
         var downloadSize = this._getArchiveSize(ffmpegUrl);
         if (!downloadSize) {
-            return "";
+            return false;
         }
 
         this.downloadUI.maximum = downloadSize + 1; // +1 to avoid closing dialog between stages.
 
         // Download ffmpeg.
         if (!this._downloadArchive(ffmpegUrl, ffmpegDownloadPath)) {
-            return "";
+            return false;
         }
 
         if (!this._extractFFmpeg(ffmpegDownloadPath)) {
-            return "";
+            return false;
         }
 
         // Verify operations were successful and FFmpeg now exists in the expected location.
@@ -940,7 +957,7 @@ function importMovieFFmpeg(): boolean {
         // Either the download or extraction failed.
         this.log("warn", `FFmpeg failed to download.`);
         this.downloadUI.close();
-        return "";
+        return false;
     };
 
     /**
@@ -948,7 +965,7 @@ function importMovieFFmpeg(): boolean {
      * Return path if detected, false if not found.
      * @return {string} Path of the detected or downloaded FFmpeg binary.
      */
-    this.getFFmpegPath = function (): string {
+    this.getFFmpegPath = function (): string | false {
         var ffmpegPath = this.getBinPath(FFMPEG_BIN, [SCRIPT_RESOURCE_PATH]);
         if (ffmpegPath) {
             return ffmpegPath;
@@ -959,10 +976,16 @@ function importMovieFFmpeg(): boolean {
         if (this.ui.exec()) {
             // Download FFmpeg and return path to binary.
             this.log("debug", `User accepted FFmpeg download prompt.`);
-            return this.downloadFFmpeg();
+
+            var downloadFFmpeg = this.downloadFFmpeg();
+            // Error downloading ffmpeg - close dialog.
+            if (!downloadFFmpeg) {
+                this.downloadUI.close();
+            }
+            return downloadFFmpeg;
         }
 
-        return "";
+        return false;
     };
 
     /**
